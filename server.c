@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <arpa/inet.h>
+// #include <unistd.h>
+// #include <time.h>
+// #include <sys/socket.h>
+// #include <netinet/in.h>
+// #include "math.h"
+
+/* Función que inicializa el servidor en el port
+con ip */
+int initializeServer(char* ip, int port){
+	int welcomeSocket, newSocket;
+	struct sockaddr_in serverAddr;
+	struct sockaddr_storage serverStorage;
+	socklen_t addr_size;
+
+	/*---- Creación del Socket. Se pasan 3 argumentos ----*/
+	/* 1) Internet domain 2) Stream socket 3) Default protocol (TCP en este caso) */
+	welcomeSocket = socket(PF_INET, SOCK_STREAM, 0);
+
+	/*---- Configuración de la estructura del servidor ----*/
+	/* Address family = Internet */
+	serverAddr.sin_family = AF_INET;
+	/* Set port number */
+	serverAddr.sin_port = htons(port);
+	/* Setear IP address como localhost */
+	serverAddr.sin_addr.s_addr = inet_addr(ip);
+	/* Setear todos los bits del padding en 0 */
+	memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
+
+	/*---- Bindear la struct al socket ----*/
+	bind(welcomeSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+
+	/*---- Listen del socket, con un máximo de 5 conexiones (solo como ejemplo) ----*/
+	if(listen(welcomeSocket,5)==0)
+		printf("Waiting for the second user to connect...\n");
+	else
+		printf("Error\n");
+
+	addr_size = sizeof serverStorage;
+	newSocket = accept(welcomeSocket, (struct sockaddr *) &serverStorage, &addr_size);
+	printf("Conected\n");
+	return newSocket;
+}
+
+char* recieveMessage(int socket, char* message){
+  printf("Waiting message... ♔ \n");
+  recv(socket, message, 1024, 0);
+  return message;
+}
+
+void sendMessage(int socket, char* message){
+  send(socket, message, 1024,0);
+}
+
+int main (int argc, char *argv[])
+//Elemento 1 de argv será 1 si es server o 0 si es client
+{
+	if (argc != 3) {
+		printf("Número de argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
+		return 1;
+	}
+  int socket;
+  printf("Server\n");
+  socket = initializeServer((char*)argv[1], atoi(argv[2]));
+
+  while (1) {
+    char* message = malloc(sizeof(char)*1024);
+    char* msg = recieveMessage(socket, message);
+    printf(msg, "%s\n");
+    printf("\nYour Message: ");
+    scanf("%s", msg);
+    printf("\n");
+    sendMessage(socket, msg);
+  }
+	return 0;
+}
