@@ -2,69 +2,80 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
-/* Función que inicializa el cliente en el port
-con ip */
+
 
 int initializeClient(char* ip, int port){
 	int clientSocket;
-  //char buffer[1024];
   struct sockaddr_in serverAddr;
   socklen_t addr_size;
 
-  /*---- Creación del Socket. Se pasan 3 argumentos ----*/
-	/* 1) Internet domain 2) Stream socket 3) Default protocol (TCP en este caso) */
   clientSocket = socket(PF_INET, SOCK_STREAM, 0);
-
-  /*---- Configuración de la estructura del servidor ----*/
-	/* Address family = Internet */
   serverAddr.sin_family = AF_INET;
-	/* Set port number */
   serverAddr.sin_port = htons(port);
-  /* Setear IP address como localhost */
   serverAddr.sin_addr.s_addr = inet_addr(ip);
-  /* Setear todos los bits del padding en 0 */
   memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
-
-  /*---- Conectar el socket al server ----*/
   addr_size = sizeof serverAddr;
   connect(clientSocket, (struct sockaddr *) &serverAddr, addr_size);
-	printf("Connected to server!\n");
-  /*---- Read the message from the server into the buffer ----*/
+
+	// printf("Connected to server!\n");
+  /*---- Read the buffer from the server into the buffer ----*/
   // recv(clientSocket, buffer, 1024, 0);
-  // /*---- Print the received message ----*/
+  // /*---- Print the received buffer ----*/
   // printf("Data received: %s",buffer);
   // strcpy(buffer,"Bye World\n");
   // send(clientSocket,buffer,11,0);
 	return clientSocket;
 }
 
-char* recieveMessage(int socket, char* message){
-  printf("Waiting message... ♔ \n");
-  recv(socket, message, 1024, 0);
-  return message;
+char* recieveMessage(int socket, char* buffer){
+  // printf("Waiting buffer... ♔ \n");
+  recv(socket, buffer, 256, 0);
+  return buffer;
 }
 
-void sendMessage(int socket, char* message){
-  send(socket, message, 1024,0);
+void sendMessage(int socket, char* buffer){
+  send(socket, buffer, 256,0);
+}
+
+char* readBuffer(char* buffer,unsigned int* id){
+  *id = (int) (buffer[0] -'0');
+  unsigned int payloadSize = (int)(buffer[1]-'0');
+  char* payload = malloc(payloadSize);
+  for (int i = 0; i < payloadSize; i++) {
+    payload[i] = buffer[2+i];
+  }
+  return payload;
 }
 
 int main(int argc, char const *argv[]) {
+	//WARNING falta hacer que los argumentos puedan ser pasados en desorden
+	//WARNING falta hacer que no se caiga al recibir malos paquetes
+
   if (argc != 3) {
-    printf("Número de argumentos inadecuado\n$ ./client -i <ip_address> -p <tcp-port>\n");
+    printf("Argumentos inadecuados\n$ ./client -i <ip_address> -p <tcp-port>\n");
     return 1;
   }
-  printf("Client\n");
-  int socket;
-  socket = initializeClient((char*)argv[1], atoi(argv[2]));
 
-	char* message = malloc(sizeof(char)*1024);
-  while (1) {
-    printf("\nYour Message: ");
-    scanf("%s", message);
-    printf("\n");
-    sendMessage(socket, message);
-    char* msg = recieveMessage(socket, message);
-    printf(msg, "%s\n");
-  }
+  int socket = initializeClient((char*)argv[1], atoi(argv[2]));
+
+	// char* buffer = malloc(sizeof(char)*256);
+	char buffer[256];
+	unsigned int id;
+	sendMessage(socket, "100");
+	recieveMessage(socket, buffer);
+	char* payload = readBuffer(buffer, &id);
+	if (id == 2) {
+		printf("Solicitud de conexion aceptada!\n");
+	}
+	// printf(msg, "%s\n");
+	//
+  // while (1) {
+  //   printf("\nYour Message: ");
+  //   scanf("%s", buffer);
+  //   printf("\n");
+  //   sendMessage(socket, buffer);
+  //   char* msg = recieveMessage(socket, buffer);
+  //   printf(msg, "%s\n");
+  // }
 	return 0;
 }
