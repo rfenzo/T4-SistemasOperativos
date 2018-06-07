@@ -57,8 +57,8 @@ int main(int argc, char const *argv[]) {
   int socket;
   socket = initializeClient((char*)argv[1], atoi(argv[2]));
 
+	char* message = malloc(sizeof(char)*1024);
   while (1) {
-    char* message = malloc(sizeof(char)*1024);
     printf("\nYour Message: ");
     scanf("%s", message);
     printf("\n");
