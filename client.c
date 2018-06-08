@@ -151,7 +151,7 @@ int main(int argc, char const *argv[]) {
 					i = 10;
 					char* amount = malloc(1);
 					while (i<0 || i>5){
-						printf("Cuantas Cartas quieres cambiar:\n");
+						printf("¿Cuantas Cartas quieres cambiar?\n");
 						scanf("%s", amount);
 						i = atoi(amount);
 						if (i<0 && i>5){
@@ -164,23 +164,31 @@ int main(int argc, char const *argv[]) {
             buffer[0]= 13 +'0';
 						buffer[1]= i*2 +'0';
   						for (int c=0; c<i; c++){
-  						printf("Ingresa Nº de carta %i a cambiar:\n", c+1);
-  						scanf("%s", carta);
-              buffer[2+c*2]= hand[atoi(carta)-1]->numero;
-              buffer[2+c*2+1]= hand[atoi(carta)-1]->pinta;
-              printf("Carta %i: %i de %i\n",atoi(carta)+1, hand[atoi(carta)-1]->numero,hand[atoi(carta)-1]->pinta);
+    						printf("Carta %i/%i: Ingresa Nº de carta a cambiar: ", c+1, i);
+    						scanf("%s", carta);
+                buffer[2+c*2]= hand[atoi(carta)-1]->numero;
+                buffer[2+c*2+1]= hand[atoi(carta)-1]->pinta;
+                printf("Se selecciońo la carta de numero %i de pinta %i\n", hand[atoi(carta)-1]->numero,hand[atoi(carta)-1]->pinta);
   						}
-              printf("Cartas ingresadas");
             }else if (i == 0){
               buffer[0] = 13 +'0';
               buffer[1] = '0';
             }
-            printf("Salio del if\n");
             sendMessage(socket, buffer);
-            printf("Size sended payload: %i\n", buffer[1]-'0');
-            printf("finish 12\n");
 				}else if (id == 14) {
-					//Get Bet
+          //Get Bet
+          char select[1];
+          printf("Te toca apostar! Elige tu apuesta:");
+          printf("1: FOLD\n");
+          printf("2: 0\n");
+          printf("3: 100\n");
+          printf("4: 200\n");
+          printf("5: 500\n");
+          scanf("%s", select);
+          buffer[0] = 15+'0';
+          buffer[1] = '1';
+          buffer[2] = atoi(select);
+          sendMessage(socket, buffer);
 				}else if (id == 15) {
 					//Return Bet
 				}else if (id == 16) {
