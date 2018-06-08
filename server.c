@@ -5,6 +5,7 @@
 #include <poll.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <time.h>
 
 struct card{
   int pinta;
@@ -37,19 +38,78 @@ void sendMessage(int socket, char* message){
 
 void opponentFound(char** nicknames, struct pollfd* fds){
   for (int i = 0; i < 2; i++) {
-    printf("%s\n",nicknames[i]);
     char buffer[254];
-    buffer[0] = '5';
+    buffer[0] = 5+'0';
     buffer[1] = strlen(nicknames[i])+'0';
     buffer[2] = 0; // hace que se concatene desde buffer[2]
     strcat(buffer,nicknames[i]);
-    sendMessage(fds[i].fd, buffer);
+    sendMessage(fds[1-i].fd, buffer);
   }
 }
 
-int main (int argc, char *argv[])
-//Elemento 1 de argv será 1 si es server o 0 si es client
-{
+void swap(Card* a, Card* b){
+   int oldAnumero = a->numero;
+   int oldApinta = a->pinta;
+   a->pinta = b->pinta;
+   a->numero = b->numero;
+   b->pinta = oldApinta;
+   b->numero = oldAnumero;
+}
+
+void generateDeckOfCards(Card** deck){
+  int count = 0;
+  for (int i = 1; i < 14; i++) {
+    for (int j = 1; j < 5; j++) {
+      deck[count] = malloc(sizeof(Card));
+      deck[count]->numero = i;
+      deck[count]->pinta = j;
+      deck[count]->taken = false;
+      count++;
+    }
+  }
+  //shuffle
+  srand(time(NULL));
+  for (int i = 52-1; i > 0; i--) {
+    int j = rand() % (i+1);
+    swap(deck[i], deck[j]);
+  }
+}
+
+Card* getRandomCard(Card** deck){
+  for (int i = 0; i < 52; i++) {
+    if (!deck[i]->taken) {
+      deck[i]->taken = true;
+      return deck[i];
+    }
+  }
+  return NULL;
+}
+
+void send5Cards(struct pollfd* fds, Card** deck){
+  char buff[256];
+  for (int j = 0; j < 2; j++) {
+    buff[0] = 10+'0';
+    buff[1] = 10+'0';
+    Card* card;
+    for (int i = 0; i < 5; i++) {
+      card = getRandomCard(deck);
+      if (card) {
+        printf("jugador %i: numero %i, pinta %i\n",j,card->numero,card->pinta );
+        buff[2*i+2] = card->numero+'0';
+        buff[2*i+3] = card->pinta+'0';
+        // printf("|%c%c|", buff[2*i+2],buff[2*i+3]);
+      }else{
+        //WARNING puede pasar esto?
+        printf("ERROR: No quedan cartas en el mazo\n");
+        break;
+      }
+    }
+    // printf("buffer sent %s\n", buff);
+    sendMessage(fds[j].fd, buff);
+  }
+}
+
+int main (int argc, char *argv[]){
 	if (argc != 3) {
 		printf("Número de argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
 		return 1;
@@ -71,20 +131,19 @@ int main (int argc, char *argv[])
     printf("Error\n");
 
   struct pollfd fds[3];
-	fds[0].fd = welcomeSocket;
+	fds[2].fd = welcomeSocket;
+  fds[2].events = POLLIN;
+  fds[0].fd = -1;
   fds[0].events = POLLIN;
   fds[1].fd = -1;
   fds[1].events = POLLIN;
-  fds[2].fd = -1;
-  fds[2].events = POLLIN;
 
   char* nicknames[2] = {malloc(sizeof(char*)),malloc(sizeof(char*))};
   Card** hands[2] = {handMaker(),handMaker()};
+  Card* deck[52];
 
   int timeout_msecs = 500;
   int ret, i, readedBytes, id;
-  // Player* players[2] = { player_init(), player_init() };
-  Card* deck[52];
   char buffer[256];
   int playercount = 0;
 
@@ -93,11 +152,10 @@ int main (int argc, char *argv[])
     if (ret > 0) {
       for (i = 0; i < 3; i++) {
 				if (fds[i].revents) {
-          // Player* currentPlayer = getPlayer(fds[i].fd, players);
-					if (i == 0) {
+					if (i == 2) {
 						//new connection
             //WARNING se queda en loop infinito si un tercer jugador ingresa
-						for (int j = 1; j < 3; j++) {
+						for (int j = 0; j < 2; j++) {
 							if (fds[j].fd < 0) {
 								addr_size = sizeof serverStorage;
 								fds[j].fd = accept(welcomeSocket, (struct sockaddr *) &serverStorage, &addr_size);
@@ -126,12 +184,11 @@ int main (int argc, char *argv[])
                   //Return Nickname
                   printf("Recibido el nickname: %s\n", payload);
                   strcpy(nicknames[i], payload);
-                  printf("%s, %s\n", nicknames[0], nicknames[1]);
                   playercount++;
                   if (playercount == 2) {
                     opponentFound(nicknames, fds);
-                    // generateDeckOfCards(deck);
-                    // send5Cards(players, deck);
+                    generateDeckOfCards(deck);
+                    send5Cards(fds, deck);
                   }
                 }else if (id == 13) {
                   //Return Cards to Change

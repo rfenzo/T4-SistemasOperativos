@@ -31,12 +31,6 @@ int initializeClient(char* ip, int port){
 		printf("ERROR: %s\n", strerror(errno));
 		return -1;
 	}
-  /*---- Read the message from the server into the buffer ----*/
-  // recv(clientSocket, buffer, 256, 0);
-  // /*---- Print the received message ----*/
-  // printf("Data received: %s",buffer);
-  // strcpy(buffer,"Bye World\n");
-  // send(clientSocket,buffer,11,0);
 	return clientSocket;
 }
 
@@ -46,11 +40,14 @@ void sendMessage(int socket, char* message){
 
 char* readBuffer(char* buffer, int* id){
   *id = (int) (buffer[0] -'0');
+  // printf("id: %i\n", *id);
   unsigned int payloadSize = (int)(buffer[1]-'0');
+  // printf("payloadsize: %i\n", payloadSize);
   char* payload = malloc(payloadSize);
   for (int i = 0; i < payloadSize; i++) {
     payload[i] = buffer[2+i];
   }
+  // printf("id:%i, size:%i, payload: %s\n",*id,payloadSize,payload );
   return payload;
 }
 
@@ -84,24 +81,23 @@ int main(int argc, char const *argv[]) {
 			if (readedBytes == 0) {
 				// WARNING que pasa acá?.
 			}else{
-				// waitingResponse = false;
 				char* payload = readBuffer(buffer, &id);
 				if (id == 2) {
 					//Connection Established
 					printf("Solicitud aceptada!\n");
 				}else if (id == 3) {
 					//Ask Nickname
-					  printf("Ingresa tu nombre de usuario: ");
-						char nickname[254];
-					  scanf("%s", nickname);
-						buffer[0] = '4';
-						buffer[1] = strlen(nickname)+'0';
-						buffer[2] = 0; // hace que se concatene desde buffer[2]
-						strcat(buffer,nickname);
-						sendMessage(socket, buffer);
+				  printf("Ingresa tu nombre de usuario: ");
+					char nickname[254];
+				  scanf("%s", nickname);
+					buffer[0] = '4';
+					buffer[1] = strlen(nickname)+'0';
+					buffer[2] = 0; // hace que se concatene desde buffer[2]
+					strcat(buffer,nickname);
+					sendMessage(socket, buffer);
 				}else if (id == 5) {
 					//Opponent Found
-					*contrincante = *payload;
+          strcpy(contrincante,payload);
 					printf("Contrincante: %s\n", contrincante);
 				}else if (id == 6) {
 					//Initial Pot
@@ -117,11 +113,12 @@ int main(int argc, char const *argv[]) {
 				}else if (id == 10) {
 					//5-Cards
 					printf("getting cards\n");
+          printf("payload %s\n", payload);
 					for (i = 0; i < 5; i++) {
-						hand[i]->numero = (int)payload[2*i];
-						hand[i]->pinta = (int)payload[2*i+1];
+						hand[i]->numero = payload[2*i]-'0';
+						hand[i]->pinta = payload[2*i+1]-'0';
 						hand[i]->valid = true;
-						printf("%i: numero %i, pinta %i\n",i, hand[i]->numero, hand[i]->pinta);
+						printf("numero %i, pinta %i\n",hand[i]->numero, hand[i]->pinta);
 					}
 				}else if (id == 11) {
 					//Who's First
@@ -153,16 +150,5 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 	}
-
-	// char* message = malloc(sizeof(char)*256);
-  // while (1) {
-  //   printf("\nYour Message: ");
-  //   scanf("%s", message);
-  //   printf("\n");
-  //   sendMessage(socket, message);
-  //   // char* msg = recieveMessage(socket, message);
-  //   // printf(msg, "%s\n");
-	// 	// sleep(2);
-  // }
 	return 0;
 }
