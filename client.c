@@ -6,6 +6,10 @@
 #include <poll.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <locale.h>
+#include <wchar.h>
+
+#define CORAZON 0x2665
 
 //MARTIN
 
@@ -15,6 +19,18 @@ struct card{
 	bool valid;
 };
 typedef struct card Card;
+
+wchar_t printPinta(int pinta){
+  if (pinta == 1) {
+    return (wchar_t) 0x2665;
+  }else if (pinta == 2) {
+    return (wchar_t) 0x2666;
+  }else if (pinta == 3) {
+    return (wchar_t) 0x2663;
+  }else if (pinta == 4) {
+    return (wchar_t) 0x2660;
+  }
+}
 
 int initializeClient(char* ip, int port){
   struct sockaddr_in serverAddr;
@@ -33,26 +49,23 @@ int initializeClient(char* ip, int port){
 		printf("ERROR: %s\n", strerror(errno));
 		return -1;
 	}
-  /*---- Read the message from the server into the buffer ----*/
-  // recv(clientSocket, buffer, 256, 0);
-  // /*---- Print the received message ----*/
-  // printf("Data received: %s",buffer);
-  // strcpy(buffer,"Bye World\n");
-  // send(clientSocket,buffer,11,0);
 	return clientSocket;
 }
 
 void sendMessage(int socket, char* message){
-  send(socket, message, 256,0);
+  send(socket, message, 258,0);
 }
 
 char* readBuffer(char* buffer, int* id){
   *id = (int) (buffer[0] -'0');
+  // printf("id: %i\n", *id);
   unsigned int payloadSize = (int)(buffer[1]-'0');
+  // printf("payloadsize: %i\n", payloadSize);
   char* payload = malloc(payloadSize);
   for (int i = 0; i < payloadSize; i++) {
     payload[i] = buffer[2+i];
   }
+  // printf("id:%i, size:%i, payload: %s\n",*id,payloadSize,payload );
   return payload;
 }
 
@@ -72,9 +85,12 @@ int main(int argc, char const *argv[]) {
 
 	int timeout_msecs = 1000;
 	int ret, readedBytes, id, pot, i;
-	char buffer[256];
-	char contrincante[254];
-	Card* hand[5];
+	char buffer[258];
+	char contrincante[256];
+	Card* hand[5] = {malloc(sizeof(Card)),malloc(sizeof(Card)),
+                  malloc(sizeof(Card)),malloc(sizeof(Card)),
+                  malloc(sizeof(Card))};
+
 
 	printf("Solicitando participar en el juego\n");
 	sendMessage(socket, "100");
@@ -82,28 +98,27 @@ int main(int argc, char const *argv[]) {
 	while(1){
 		ret = poll(fds, 1, timeout_msecs);
 		if (ret > 0) {
-			readedBytes = read(fds[0].fd, buffer, 256);
+			readedBytes = read(fds[0].fd, buffer, 258);
 			if (readedBytes == 0) {
 				// WARNING que pasa acá?.
 			}else{
-				// waitingResponse = false;
 				char* payload = readBuffer(buffer, &id);
 				if (id == 2) {
 					//Connection Established
 					printf("Solicitud aceptada!\n");
 				}else if (id == 3) {
 					//Ask Nickname
-					  printf("Ingresa tu nombre de usuario: ");
-						char nickname[254];
-					  scanf("%s", nickname);
-						buffer[0] = '4';
-						buffer[1] = strlen(nickname)+'0';
-						buffer[2] = 0; // hace que se concatene desde buffer[2]
-						strcat(buffer,nickname);
-						sendMessage(socket, buffer);
+				  printf("Ingresa tu nombre de usuario: ");
+					char nickname[256];
+				  scanf("%s", nickname);
+					buffer[0] = '4';
+					buffer[1] = strlen(nickname)+'0';
+					buffer[2] = 0; // hace que se concatene desde buffer[2]
+					strcat(buffer,nickname);
+					sendMessage(socket, buffer);
 				}else if (id == 5) {
 					//Opponent Found
-					*contrincante = *payload;
+          strcpy(contrincante,payload);
 					printf("Contrincante: %s\n", contrincante);
 				}else if (id == 6) {
 					//Initial Pot
@@ -118,12 +133,13 @@ int main(int argc, char const *argv[]) {
 					pot -= 10;
 				}else if (id == 10) {
 					//5-Cards
-					printf("getting cards\n");
+					printf("Recibiendo 5 cartas iniciales:\n");
+          setlocale(LC_CTYPE, "");
 					for (i = 0; i < 5; i++) {
-						hand[i]->numero = (int)payload[2*i];
-						hand[i]->pinta = (int)payload[2*i+1];
+						hand[i]->numero = payload[2*i]-'0';
+						hand[i]->pinta = payload[2*i+1]-'0';
 						hand[i]->valid = true;
-						printf("%i: numero %i, pinta %i\n",i, hand[i]->numero, hand[i]->pinta);
+            printf("%i de %i\n", hand[i]->numero,hand[i]->pinta);
 					}
 				}else if (id == 11) {
 					//Who's First
@@ -155,16 +171,5 @@ int main(int argc, char const *argv[]) {
 			}
 		}
 	}
-
-	// char* message = malloc(sizeof(char)*256);
-  // while (1) {
-  //   printf("\nYour Message: ");
-  //   scanf("%s", message);
-  //   printf("\n");
-  //   sendMessage(socket, message);
-  //   // char* msg = recieveMessage(socket, message);
-  //   // printf(msg, "%s\n");
-	// 	// sleep(2);
-  // }
 	return 0;
 }
