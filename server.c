@@ -232,6 +232,7 @@ int main (int argc, char *argv[]){
 
                 }else if (id == 13) {
                   //Return Cards to Change
+                  printf("Recibi cartas para cambiar");
                   changeCards(hands[i], payload, deck);
                 }else if (id == 15) {
                   //Return Bet

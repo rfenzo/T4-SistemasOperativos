@@ -30,6 +30,7 @@ wchar_t printPinta(int pinta){
   }else if (pinta == 4) {
     return (wchar_t) 0x2660;
   }
+  return 0;
 }
 
 int initializeClient(char* ip, int port){
@@ -123,24 +124,27 @@ int main(int argc, char const *argv[]) {
 					printf("Contrincante: %s\n", contrincante);
 				}else if (id == 6) {
 					//Initial Pot
-					pot = (int) payload;
+					pot = atoi(payload);
+          printf("Dinero inicial de %i\n", pot);
 				}else if (id == 7) {
 					//Game Start
+          printf("El juego ha iniciado!\n");
 				}else if (id == 8) {
 					//Start Round
-					pot = (int) payload;
+					pot = atoi(payload);
 				}else if (id == 9) {
 					//Initial Bet
 					pot -= 10;
+          printf("Pagando apuesta inicial\n  -> Dinero: %i -> %i\n", pot+10,pot);
 				}else if (id == 10) {
 					//5-Cards
-					printf("Recibiendo 5 cartas iniciales:\n");
-					setlocale(LC_CTYPE, "");
+					printf("\nAquí estan tus cartas:\n");
+          // setlocale(LC_CTYPE, "");
 					for (i = 0; i < 5; i++) {
 						hand[i]->numero = payload[2*i]-'0';
 						hand[i]->pinta = payload[2*i+1]-'0';
 						hand[i]->valid = true;
-            		printf("Carta %i: %i de %i\n",i+1, hand[i]->numero,hand[i]->pinta);
+            printf("  -> %i de pinta %i\n", hand[i]->numero,hand[i]->pinta);
 					}
 				}else if (id == 11) {
 					//Who's First
@@ -177,9 +181,6 @@ int main(int argc, char const *argv[]) {
             printf("Salio del if\n");
             sendMessage(socket, buffer);
             printf("Size sended payload: %i\n", buffer[1]-'0');
-            printf("finish 12\n");
-
-
 				}else if (id == 14) {
 					//Get Bet
 				}else if (id == 15) {
@@ -198,6 +199,8 @@ int main(int argc, char const *argv[]) {
 					//Update Pot
 				}else if (id == 22) {
 					//Game End
+          printf("El juego ha terminado\n");
+          return 0;
 				}else if (id == 23) {
 					//Image
 				}else if (id == 24) {
