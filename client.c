@@ -103,6 +103,7 @@ int main(int argc, char const *argv[]) {
 				// WARNING que pasa acá?.
 			}else{
 				char* payload = readBuffer(buffer, &id);
+        printf("ID: %i\n", id);
 				if (id == 2) {
 					//Connection Established
 					printf("Solicitud aceptada!\n");
@@ -118,7 +119,7 @@ int main(int argc, char const *argv[]) {
 					sendMessage(socket, buffer);
 				}else if (id == 5) {
 					//Opponent Found
-          strcpy(contrincante,payload);
+				strcpy(contrincante,payload);
 					printf("Contrincante: %s\n", contrincante);
 				}else if (id == 6) {
 					//Initial Pot
@@ -134,17 +135,51 @@ int main(int argc, char const *argv[]) {
 				}else if (id == 10) {
 					//5-Cards
 					printf("Recibiendo 5 cartas iniciales:\n");
-          setlocale(LC_CTYPE, "");
+					setlocale(LC_CTYPE, "");
 					for (i = 0; i < 5; i++) {
 						hand[i]->numero = payload[2*i]-'0';
 						hand[i]->pinta = payload[2*i+1]-'0';
 						hand[i]->valid = true;
-            printf("%i de %i\n", hand[i]->numero,hand[i]->pinta);
+            		printf("Carta %i: %i de %i\n",i+1, hand[i]->numero,hand[i]->pinta);
 					}
 				}else if (id == 11) {
 					//Who's First
 				}else if (id == 12) {
 					//Get Cards to Change
+          printf("Entro id 12\n");
+					i = 10;
+					char* amount = malloc(1);
+					while (i<0 || i>5){
+						printf("Cuantas Cartas quieres cambiar:\n");
+						scanf("%s", amount);
+						i = atoi(amount);
+						if (i<0 && i>5){
+							printf("Debes ingresar un numero entre 0 y 5\n");
+						}
+					}
+          printf("i: %i\n",i );
+					if (i>0){
+            char carta[1];
+            buffer[0]= 13 +'0';
+						buffer[1]= i*2 +'0';
+  						for (int c=0; c<i; c++){
+  						printf("Ingresa Nº de carta %i a cambiar:\n", c+1);
+  						scanf("%s", carta);
+              buffer[2+c*2]= hand[atoi(carta)-1]->numero;
+              buffer[2+c*2+1]= hand[atoi(carta)-1]->pinta;
+              printf("Carta %i: %i de %i\n",atoi(carta)+1, hand[atoi(carta)-1]->numero,hand[atoi(carta)-1]->pinta);
+  						}
+              printf("Cartas ingresadas");
+            }else if (i == 0){
+              buffer[0] = 13 +'0';
+              buffer[1] = '0';
+            }
+            printf("Salio del if\n");
+            sendMessage(socket, buffer);
+            printf("Size sended payload: %i\n", buffer[1]-'0');
+            printf("finish 12\n");
+
+
 				}else if (id == 14) {
 					//Get Bet
 				}else if (id == 15) {

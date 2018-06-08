@@ -221,7 +221,15 @@ int main (int argc, char *argv[]){
                     opponentFound(nicknames, fds);
                     generateDeckOfCards(deck);
                     send5Cards(fds, deck);
+
+                    printf("Envio Solicitud de cambiar\n");
+                    char buff[3];
+                    buff[0] = 12+'0';
+                    buff[1] = '0';
+                    sendMessage(fds[i].fd, buff);
+                    sendMessage(fds[1-i].fd, buff);
                   }
+
                 }else if (id == 13) {
                   //Return Cards to Change
                   changeCards(hands[i], payload, deck);
