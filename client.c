@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+//MARTIN
+
 struct card{
   int pinta;
   int numero;
