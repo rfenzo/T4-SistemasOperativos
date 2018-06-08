@@ -24,11 +24,14 @@ Card** handMaker(){
 
 char* readBuffer(char* buffer, int* id){
   *id = (int) (buffer[0] -'0');
+  printf("id: %i\n", *id);
   unsigned int payloadSize = (int)(buffer[1]-'0');
+  printf("payload size: %i\n", payloadSize);
   char* payload = malloc(payloadSize);
   for (int i = 0; i < payloadSize; i++) {
     payload[i] = buffer[2+i];
   }
+  printf("payload real size: %lu\n", sizeof(payload));
   return payload;
 }
 
@@ -94,7 +97,7 @@ void send5Cards(struct pollfd* fds, Card** deck){
     for (int i = 0; i < 5; i++) {
       card = getRandomCard(deck);
       if (card) {
-        printf("jugador %i: numero %i, pinta %i\n",j,card->numero,card->pinta );
+        // printf("jugador %i: numero %i, pinta %i\n",j,card->numero,card->pinta );
         buff[2*i+2] = card->numero+'0';
         buff[2*i+3] = card->pinta+'0';
         // printf("|%c%c|", buff[2*i+2],buff[2*i+3]);
@@ -115,13 +118,19 @@ bool compareCards(Card* card1, Card* card2){
 }
 
 void changeCards(Card** hand, char* payload, Card** deck){
+  printf("sizeof payload %lu\n", sizeof(payload));
   Card** oldCards = malloc(sizeof(Card)*(sizeof(payload)/2));
+
   for (int i = 0; i < sizeof(payload); i++) {
     if (i % 2 == 0) {
+      oldCards[i/2] = malloc(sizeof(Card));
       oldCards[i/2]->numero = (int)payload[i];
     }else{
       oldCards[i/2]->pinta = (int)payload[i];
     }
+  }
+  for (int i = 0; i < (sizeof(payload)/2); i++) {
+    printf("old card numero %i, %i\n", oldCards[i]->numero, oldCards[i]->pinta);
   }
   //cambiar las cartas del player con unas nuevas
   for (int j = 0; j < sizeof(payload)/2; j++) {
@@ -130,6 +139,7 @@ void changeCards(Card** hand, char* payload, Card** deck){
         Card* newCard = getRandomCard(deck);
         if (newCard) {
           hand[i] = newCard;
+          printf("new card numero %i, %i\n", newCard->numero, newCard->pinta);
         }else{
           //WARNING que hacer?
           printf("No quedan cartas en el mazo\n");
@@ -139,6 +149,49 @@ void changeCards(Card** hand, char* payload, Card** deck){
     }
   }
   //quizas se deba retornas las nuevas cartas
+}
+
+void updatePots(struct pollfd* fds, int* pots, int id){
+  char buff[258];
+  for (int i = 0; i < 2; i++) {
+    buff[0] = id+'0';
+    buff[1] = sizeof(pots[i]) + '0';
+    char* array = malloc(sizeof(int));
+    sprintf( array, "%i", pots[i]);
+    for (int j = 0; j < 4; j++) {
+      buff[2+j] = array[j];
+    }
+    sendMessage(fds[i].fd, buff);
+  }
+}
+
+void winnerLoser(struct pollfd fdsWinner,struct pollfd fdsLoser){
+  char buff[3];
+  buff[0] = 20 +'0';
+  buff[1] = '1';
+  buff[2] = '1';
+  sendMessage(fdsWinner.fd, buff);
+  buff[2] = '2';
+  sendMessage(fdsWinner.fd, buff);
+}
+
+void initialBet(struct pollfd* fds, int* pots){
+  for (int i = 0; i < 2; i++) {
+    if (pots[i] >= 10) {
+      pots[i] -= 10;
+      sendMessage(fds[i].fd, "900");
+    }else{
+      // winnerLoser(fds[i-1], fds[i]);
+      // updatePots(fds, pots, 21);
+      char buff[3];
+      buff[0] = 22 +'0';
+      buff[1] = '0';
+      buff[2] = '0';
+      sendMessage(fds[i].fd, buff);
+      sendMessage(fds[1-i].fd, buff);
+      break;
+    }
+  }
 }
 
 int main (int argc, char *argv[]){
@@ -172,14 +225,28 @@ int main (int argc, char *argv[]){
 
   char* nicknames[2] = {malloc(sizeof(char*)),malloc(sizeof(char*))};
   Card** hands[2] = {handMaker(),handMaker()};
+  int pots[2] = {1000,1000};
   Card* deck[52];
 
   int timeout_msecs = 500;
   int ret, i, readedBytes, id;
   char buffer[258];
   int playercount = 0;
+  bool startRound = false;
 
   while(1){
+    if (startRound) {
+      updatePots(fds, pots, 6);
+      initialBet(fds, pots);
+      send5Cards(fds, deck);
+      buffer[0] = 12 + '0';
+      buffer[1] = '0';
+      buffer[2] = '0';
+      sendMessage(fds[0].fd, buffer);
+      sendMessage(fds[1].fd, buffer);
+      startRound = false;
+    }
+
     ret = poll(fds, 3, timeout_msecs);
     if (ret > 0) {
       for (i = 0; i < 3; i++) {
@@ -195,7 +262,6 @@ int main (int argc, char *argv[]){
 							}
 						}
 					}else{
-            sleep(1);
 						readedBytes = read(fds[i].fd, buffer, 258);
 						if (readedBytes == 0) {
 							printf("Cliente se ha desconectado\n");
@@ -220,10 +286,16 @@ int main (int argc, char *argv[]){
                   if (playercount == 2) {
                     opponentFound(nicknames, fds);
                     generateDeckOfCards(deck);
-                    send5Cards(fds, deck);
+                    //game start
+                    sendMessage(fds[0].fd, "700");
+                    sendMessage(fds[1].fd, "700");
+                    //initial pots
+                    startRound = true;
+
                   }
                 }else if (id == 13) {
                   //Return Cards to Change
+                  printf("payload size before changeCards %lu\n", sizeof(payload));
                   changeCards(hands[i], payload, deck);
                 }else if (id == 15) {
                   //Return Bet
