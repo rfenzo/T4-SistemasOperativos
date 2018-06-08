@@ -33,12 +33,12 @@ char* readBuffer(char* buffer, int* id){
 }
 
 void sendMessage(int socket, char* message){
-  send(socket, message, 256,0);
+  send(socket, message, 258,0);
 }
 
 void opponentFound(char** nicknames, struct pollfd* fds){
   for (int i = 0; i < 2; i++) {
-    char buffer[254];
+    char buffer[256];
     buffer[0] = 5+'0';
     buffer[1] = strlen(nicknames[i])+'0';
     buffer[2] = 0; // hace que se concatene desde buffer[2]
@@ -86,7 +86,7 @@ Card* getRandomCard(Card** deck){
 }
 
 void send5Cards(struct pollfd* fds, Card** deck){
-  char buff[256];
+  char buff[258];
   for (int j = 0; j < 2; j++) {
     buff[0] = 10+'0';
     buff[1] = 10+'0';
@@ -107,6 +107,38 @@ void send5Cards(struct pollfd* fds, Card** deck){
     // printf("buffer sent %s\n", buff);
     sendMessage(fds[j].fd, buff);
   }
+}
+
+
+bool compareCards(Card* card1, Card* card2){
+  return (card1->numero == card2->numero && card1->pinta == card2->pinta);
+}
+
+void changeCards(Card** hand, char* payload, Card** deck){
+  Card** oldCards = malloc(sizeof(Card)*(sizeof(payload)/2));
+  for (int i = 0; i < sizeof(payload); i++) {
+    if (i % 2 == 0) {
+      oldCards[i/2]->numero = (int)payload[i];
+    }else{
+      oldCards[i/2]->pinta = (int)payload[i];
+    }
+  }
+  //cambiar las cartas del player con unas nuevas
+  for (int j = 0; j < sizeof(payload)/2; j++) {
+    for (int i = 0; i < 5; i++) {
+      if (compareCards(hand[i], oldCards[j])) {
+        Card* newCard = getRandomCard(deck);
+        if (newCard) {
+          hand[i] = newCard;
+        }else{
+          //WARNING que hacer?
+          printf("No quedan cartas en el mazo\n");
+        }
+        break;
+      }
+    }
+  }
+  //quizas se deba retornas las nuevas cartas
 }
 
 int main (int argc, char *argv[]){
@@ -144,7 +176,7 @@ int main (int argc, char *argv[]){
 
   int timeout_msecs = 500;
   int ret, i, readedBytes, id;
-  char buffer[256];
+  char buffer[258];
   int playercount = 0;
 
   while(1){
@@ -164,7 +196,7 @@ int main (int argc, char *argv[]){
 						}
 					}else{
             sleep(1);
-						readedBytes = read(fds[i].fd, buffer, 256);
+						readedBytes = read(fds[i].fd, buffer, 258);
 						if (readedBytes == 0) {
 							printf("Cliente se ha desconectado\n");
 							fds[i].fd = -1;
@@ -192,7 +224,7 @@ int main (int argc, char *argv[]){
                   }
                 }else if (id == 13) {
                   //Return Cards to Change
-                  // changeCards(currentPlayer, payload, deck);
+                  changeCards(hands[i], payload, deck);
                 }else if (id == 15) {
                   //Return Bet
                   //WARNING Falta hacer ésto

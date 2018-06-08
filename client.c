@@ -6,6 +6,10 @@
 #include <poll.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <locale.h>
+#include <wchar.h>
+
+#define CORAZON 0x2665
 
 struct card{
   int pinta;
@@ -13,6 +17,18 @@ struct card{
 	bool valid;
 };
 typedef struct card Card;
+
+wchar_t printPinta(int pinta){
+  if (pinta == 1) {
+    return (wchar_t) 0x2665;
+  }else if (pinta == 2) {
+    return (wchar_t) 0x2666;
+  }else if (pinta == 3) {
+    return (wchar_t) 0x2663;
+  }else if (pinta == 4) {
+    return (wchar_t) 0x2660;
+  }
+}
 
 int initializeClient(char* ip, int port){
   struct sockaddr_in serverAddr;
@@ -35,7 +51,7 @@ int initializeClient(char* ip, int port){
 }
 
 void sendMessage(int socket, char* message){
-  send(socket, message, 256,0);
+  send(socket, message, 258,0);
 }
 
 char* readBuffer(char* buffer, int* id){
@@ -67,11 +83,12 @@ int main(int argc, char const *argv[]) {
 
 	int timeout_msecs = 1000;
 	int ret, readedBytes, id, pot, i;
-	char buffer[256];
-	char contrincante[254];
+	char buffer[258];
+	char contrincante[256];
 	Card* hand[5] = {malloc(sizeof(Card)),malloc(sizeof(Card)),
                   malloc(sizeof(Card)),malloc(sizeof(Card)),
                   malloc(sizeof(Card))};
+
 
 	printf("Solicitando participar en el juego\n");
 	sendMessage(socket, "100");
@@ -79,7 +96,7 @@ int main(int argc, char const *argv[]) {
 	while(1){
 		ret = poll(fds, 1, timeout_msecs);
 		if (ret > 0) {
-			readedBytes = read(fds[0].fd, buffer, 256);
+			readedBytes = read(fds[0].fd, buffer, 258);
 			if (readedBytes == 0) {
 				// WARNING que pasa acá?.
 			}else{
@@ -90,7 +107,7 @@ int main(int argc, char const *argv[]) {
 				}else if (id == 3) {
 					//Ask Nickname
 				  printf("Ingresa tu nombre de usuario: ");
-					char nickname[254];
+					char nickname[256];
 				  scanf("%s", nickname);
 					buffer[0] = '4';
 					buffer[1] = strlen(nickname)+'0';
@@ -114,18 +131,13 @@ int main(int argc, char const *argv[]) {
 					pot -= 10;
 				}else if (id == 10) {
 					//5-Cards
-					printf("getting cards\n");
-          printf("payload %s\n", payload);
+					printf("Recibiendo 5 cartas iniciales:\n");
+          setlocale(LC_CTYPE, "");
 					for (i = 0; i < 5; i++) {
-            printf(" 2*i %i\n", 2*i);
-            printf(" payload 2*i %c\n", payload[2*i]);
-            printf(" payload 2*i+1 %c\n", payload[2*i+1]);
 						hand[i]->numero = payload[2*i]-'0';
-            printf("here\n" );
 						hand[i]->pinta = payload[2*i+1]-'0';
-            printf("here\n" );
 						hand[i]->valid = true;
-						printf("numero %i, pinta %i\n",hand[i]->numero, hand[i]->pinta);
+            printf("%i de %i\n", hand[i]->numero,hand[i]->pinta);
 					}
 				}else if (id == 11) {
 					//Who's First
