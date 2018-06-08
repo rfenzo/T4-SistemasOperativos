@@ -69,7 +69,9 @@ int main(int argc, char const *argv[]) {
 	int ret, readedBytes, id, pot, i;
 	char buffer[256];
 	char contrincante[254];
-	Card* hand[5];
+	Card* hand[5] = {malloc(sizeof(Card)),malloc(sizeof(Card)),
+                  malloc(sizeof(Card)),malloc(sizeof(Card)),
+                  malloc(sizeof(Card))};
 
 	printf("Solicitando participar en el juego\n");
 	sendMessage(socket, "100");
@@ -115,8 +117,13 @@ int main(int argc, char const *argv[]) {
 					printf("getting cards\n");
           printf("payload %s\n", payload);
 					for (i = 0; i < 5; i++) {
+            printf(" 2*i %i\n", 2*i);
+            printf(" payload 2*i %c\n", payload[2*i]);
+            printf(" payload 2*i+1 %c\n", payload[2*i+1]);
 						hand[i]->numero = payload[2*i]-'0';
+            printf("here\n" );
 						hand[i]->pinta = payload[2*i+1]-'0';
+            printf("here\n" );
 						hand[i]->valid = true;
 						printf("numero %i, pinta %i\n",hand[i]->numero, hand[i]->pinta);
 					}
