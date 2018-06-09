@@ -284,6 +284,8 @@ int main(int argc, char const *argv[]) {
           else if (payload[0] == 2){printf("PERDSTE!!\n");}
 				}else if (id == 21) {
 					//Update Pot
+          pot = charsToInt(payload);
+          printf("Tu pot actual es de %i\n", pot);
 				}else if (id == 22) {
 					//Game End
           printf("El juego ha terminado\n");
