@@ -124,6 +124,9 @@ int main(int argc, char const *argv[]) {
 	Card* hand[5] = {malloc(sizeof(Card)),malloc(sizeof(Card)),
                   malloc(sizeof(Card)),malloc(sizeof(Card)),
                   malloc(sizeof(Card))};
+  Card* oponent_hand[5] = {malloc(sizeof(Card)),malloc(sizeof(Card)),
+                  malloc(sizeof(Card)),malloc(sizeof(Card)),
+                  malloc(sizeof(Card))};
 
 
 	printf("Solicitando participar en el juego\n");
@@ -243,10 +246,23 @@ int main(int argc, char const *argv[]) {
 					//Ok Bet
 				}else if (id == 18) {
 					//End Round
+          printf("Ha TERMINADO esta RONDA\n");
 				}else if (id == 19) {
 					//Show Opponent Cards
+          printf("Aquí estan las cartas de tu OPONENTE:\n");
+          // setlocale(LC_CTYPE, "");
+					for (i = 0; i < 5; i++) {
+						oponent_hand[i]->numero = payload[2*i];
+						oponent_hand[i]->pinta = payload[2*i+1];
+						oponent_hand[i]->valid = true;
+            printf("  %i: ",i+1);
+            printCard(oponent_hand[i]);
+            printf("\n");
+					}
 				}else if (id == 20) {
 					//Winner/Loser
+          if (payload[0] == 1){printf("GANASTE!\n");}
+          else if (payload[0] == 2){printf("PERDSTE!!\n");}
 				}else if (id == 21) {
 					//Update Pot
 				}else if (id == 22) {
@@ -257,7 +273,12 @@ int main(int argc, char const *argv[]) {
 					//Image
 				}else if (id == 24) {
 					//Error Not Implemented
-				}
+				}else if (id > 24 || id<1) {
+					//Error Not Implemented
+          buffer[0]=24;
+          buffer[1]=0;
+          sendMessage(socket, buffer);
+        }
 			}
 		}
 	}
