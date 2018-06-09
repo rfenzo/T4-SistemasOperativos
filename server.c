@@ -215,8 +215,6 @@ void finish(struct pollfd* fds, int winner, int* bets, int* pots, Card*** hands)
     sendMessage(fds[p].fd, buff);
   }
 
-
-
   //Envio Cartas Oponente
   for (int p=0;p<2;p++){
     buff[0] = 19;
@@ -230,16 +228,16 @@ void finish(struct pollfd* fds, int winner, int* bets, int* pots, Card*** hands)
     sendMessage(fds[1-p].fd, buff);
   }
 
-//Eviar si gano o perdio
-for (int p=0;p<2;p++){
-  buff[0]=20;
-  buff[1]=1;
-  if (p == winner){
-    buff[2]=1;
-  }else{buff[2]=2;}
-  sendMessage(fds[p].fd, buff);
-  }
+  //Eviar si gano o perdio
+  for (int p=0;p<2;p++){
+    buff[0]=20;
+    buff[1]=1;
+    if (p == winner){
+      buff[2]=1;
+    }else{buff[2]=2;}
 
+    sendMessage(fds[p].fd, buff);
+  }
 }
 
 int initialBet(struct pollfd fd, int pot, int bet){
@@ -268,12 +266,9 @@ int changeBet(int* bets, int* pots, int bet_id, int player){
   }else if (bet_id == 5){
     pots[player] -= (500 - bets[player]);
     bets[player] = 500;
-
   }
   return 1;
 }
-
-
 
 void betOptions(int* buffer, int* money_available, int* pots, int player, int move){
   for (int e=0; e<5; e++){
@@ -294,13 +289,50 @@ void betOptions(int* buffer, int* money_available, int* pots, int player, int mo
     printf("%i", buffer[e]);
   }
   printf("\n");
-
-
 }
 
 void printMoneyAvailable(int* ma){
-  printf(" Dinero 1: %i\n", ma[0]);
-  printf("Dinero 2: %i\n", ma[1]);
+  printf("  Dinero 1: %i\n", ma[0]);
+  printf("  Dinero 2: %i\n", ma[1]);
+}
+
+int sendImage(struct pollfd fd,int tipo){
+  char filename[15];
+  if (tipo == 0) {
+    strcpy(filename, "winner.gif");
+  }else if (tipo == 1) {
+    strcpy(filename, "loser.gif");
+  }
+  printf("Enviando imagen %s\n", filename);
+
+  FILE* file = fopen(filename, "rb");
+  if (!file){
+    printf("Unable to open file %s", filename);
+    return 1;
+  }
+
+  fseek(file, 0, SEEK_END);
+  unsigned long fileLen = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  //Allocate memory
+  char* buffer = malloc(fileLen);
+  if (!buffer){
+    printf("Memory error!");
+    fclose(file);
+    return 2;
+  }
+  fread(buffer,fileLen,1,file);
+  fclose(file);
+
+  char* buffer2 = malloc(fileLen+2);
+  buffer2[0] = 23;
+  buffer2[1] = fileLen;
+  for (int i = 0; i < fileLen; i++) {
+    buffer2[i+2] = buffer[i];
+  }
+  sendMessage(fd.fd, buffer2);
+  return 0;
 }
 
 int main (int argc, char *argv[]){
@@ -308,8 +340,6 @@ int main (int argc, char *argv[]){
 		printf("Número de argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
 		return 1;
 	}
-
-
 	int welcomeSocket;
 	struct sockaddr_in serverAddr;
 	struct sockaddr_storage serverStorage;
@@ -362,8 +392,16 @@ int main (int argc, char *argv[]){
 
         //initial bet, envia monto de apuesta inicial y descuenta de su pot
         perdedor = initialBet(fds[i], pots[i], bets[i]);
-        //WARNING SI PERDEDOR == -1, SIGNIFICA QUE EL JUGADOR i PERDIÓ
-
+        if (perdedor == -1) {
+          int stat = sendImage(fds[i], 0);
+          if (stat != 0) {
+            printf("Error al enviar imagen, stat de sendImage %i\n", stat);
+          }
+          buffer[0] = 22;
+          buffer[1] = 0;
+          buffer[2] = 0;
+          sendMessage(fds[i].fd, buffer);
+        }
         //setea en el servidor las cartas de los jugadores
         giveInitialCards(fds[i], deck, hands[i]);
 
@@ -371,7 +409,7 @@ int main (int argc, char *argv[]){
         sendHand(fds[i], hands[i]);
 
         //get cards to change, pregunta a los jugadores si quieres cambiar cartas
-        buffer[0] = 12 ;
+        buffer[0] = 12;
         buffer[1] = 0;
         buffer[2] = 0;
         sendMessage(fds[i].fd, buffer);
