@@ -159,6 +159,7 @@ int main(int argc, char const *argv[]) {
 			}else{
         // showbits(buffer[0]);
 				char* payload = readBuffer(buffer, &id, &payloadSize);
+        printf("ID %i\n", id);
 				if (id == 2) {
 					//Connection Established
 					printf("  -> Solicitud aceptada!\n");
@@ -259,7 +260,7 @@ int main(int argc, char const *argv[]) {
 				}else if (id == 16) {
 					//Error Bet
           printf("Tu apuesta no es valida, vuelve a ingresar una apuesta\n");
-          
+
 				}else if (id == 17) {
 					//Ok Bet
 				}else if (id == 18) {
@@ -289,6 +290,10 @@ int main(int argc, char const *argv[]) {
           return 0;
 				}else if (id == 23) {
 					//Image
+          printf("Recibiendo imagen!\n");
+          FILE* imagen = fopen("imagenRecibida.gif","wb");
+          fwrite(payload, payloadSize, 1, imagen);
+          fclose(imagen);
 				}else if (id == 24) {
 					//Error Not Implemented
 				}else if (id > 24 || id<1) {
