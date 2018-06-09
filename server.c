@@ -238,7 +238,11 @@ void finish(struct pollfd* fds, int winner, int* bets, int* pots, Card*** hands)
     buff[1]=1;
     if (p == winner){
       buff[2]=1;
-    }else{buff[2]=2;}
+      sendMessage(fds[p].fd, buff);
+    }else{
+      buff[2]=2;
+      sendMessage(fds[p].fd, buff);
+    }
 
   //Envio update pots
   for (int p=0; p<2;p++){
@@ -247,10 +251,10 @@ void finish(struct pollfd* fds, int winner, int* bets, int* pots, Card*** hands)
 }
 }
 
-int initialBet(struct pollfd fd, int pot, int bet){
-  if (pot >= 10) {
-    pot -= 10;
-    bet += 10;
+int initialBet(struct pollfd fd, int* pot, int* bet){
+  if (*pot >= 10) {
+    *pot -= 10;
+    *bet += 10;
     char buff[200];
     buff[0] = 9;
     buff[1] = 1;
@@ -405,7 +409,11 @@ int main (int argc, char *argv[]){
         sendInteger(fds[i], pots[i], 8);
 
         //initial bet, envia monto de apuesta inicial y descuenta de su pot
-        perdedor = initialBet(fds[i], pots[i], bets[i]);
+        perdedor = initialBet(fds[i], &pots[i], &bets[i]);
+
+
+        //bets[0] = 10;
+        //bets[1] = 10;
         if (perdedor == -1) {
           sendImage(fds[i], 1);
           sendImage(fds[1-i], 0);
@@ -428,6 +436,7 @@ int main (int argc, char *argv[]){
         buffer[1] = 0;
         buffer[2] = 0;
         sendMessage(fds[i].fd, buffer);
+
       }
       startRound = false;
       betsTime = true;
@@ -557,6 +566,7 @@ int main (int argc, char *argv[]){
                   int valid = changeBet(bets, pots, bet_id, i);
                   printBets(bets);
 
+
                   if (move == 2){
                     printf("bet del anterior: %i\n", bets[i]);
                     if (bet_id == 1){finish(fds, 1-i, bets, pots, hands); startRound=true; move=1;}
@@ -605,7 +615,7 @@ int main (int argc, char *argv[]){
                   if (move == 3){
 
                     if (bet_id == 1){finish(fds, 1-i, bets, pots, hands); startRound=true; move=1;}
-                    if (bets[i]==bets[1-i]){printf("Termino");}
+                    if (bets[i]==bets[1-i]){finish(fds, 0, bets, pots, hands); startRound=true; move=1;}
                     else{
                       if (bets[i]==100){
                         buffer[0] = 14;

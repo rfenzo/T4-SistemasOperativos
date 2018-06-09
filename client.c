@@ -10,10 +10,22 @@
 #include <locale.h>
 #include <math.h>
 
+void showbits(char x){
+    int i;
+    for(i=(sizeof(x)*8)-1; i>=0; i--)
+            (x&(1u<<i))?putchar('1'):putchar('0');
+
+    printf("\n");
+}
+
+
 int charsToInt(char* input) {
   //formato de envio: 2 chars en BigEndian. Ej para 1000 sería:
   // 00000011
   // 11101000
+  printf("Entro a charsToInt: \n");
+  showbits(input[0]);
+  showbits(input[1]);
   int result = 0;
   for (int j = 0; j < 2; j++) {
     for(int i = 7; i >= 0; i--) {
@@ -22,6 +34,7 @@ int charsToInt(char* input) {
       }
     }
   }
+
   return result;
 }
 
@@ -32,13 +45,7 @@ struct card{
 };
 typedef struct card Card;
 
-void showbits(char x){
-    int i;
-    for(i=(sizeof(x)*8)-1; i>=0; i--)
-            (x&(1u<<i))?putchar('1'):putchar('0');
 
-    printf("\n");
-}
 
 int initializeClient(char* ip, int port){
   struct sockaddr_in serverAddr;
