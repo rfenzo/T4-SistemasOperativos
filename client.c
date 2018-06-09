@@ -8,6 +8,22 @@
 #include <stdbool.h>
 #include <wchar.h>
 #include <locale.h>
+#include <math.h>
+
+int charsToInt(char* input) {
+  //formato de envio: 2 chars en BigEndian. Ej para 1000 sería:
+  // 00000011
+  // 11101000
+  int result = 0;
+  for (int j = 0; j < 2; j++) {
+    for(int i = 7; i >= 0; i--) {
+      if (input[j]&(1u << i)) {
+        result += pow(2,i+((1-j)*8));
+      }
+    }
+  }
+  return result;
+}
 
 struct card{
   int pinta;
@@ -49,7 +65,7 @@ void sendMessage(int socket, char* message){
 }
 
 char* readBuffer(char* buffer, int* id, int* payloadSize){
-  printf("Recibo bits "); showbits(buffer[0]); printf(" Y los interpreto como %i\n", (int) (buffer[0]));
+  // printf("Recibo bits "); showbits(buffer[0]); printf(" Y los interpreto como %i\n", (int) (buffer[0]));
   *id = (int) (buffer[0]);
   *payloadSize = (int)(buffer[1]);
   char* payload = malloc(*payloadSize);
@@ -80,11 +96,9 @@ char numberToCardChar(int numero){
     return 'Q';
   }else if (numero == 13) {
     return 'K';
-  }
-  else if (numero == 1) {
+  }else if (numero == 1) {
     return 'A';
-  }
-  else if (numero == 10) {
+  }else if (numero == 10) {
     return 'D';
   }else{
     return numero + '0';
@@ -129,8 +143,8 @@ int main(int argc, char const *argv[]) {
 	printf("Solicitando participar en el juego\n");
   buffer[0] = 1;
   buffer[1] = 0;
-  showbits(buffer[0]);
-  showbits(buffer[1]);
+  // showbits(buffer[0]);
+  // showbits(buffer[1]);
 	sendMessage(socket, buffer);
 
 	while(1){
@@ -140,7 +154,7 @@ int main(int argc, char const *argv[]) {
 			if (readedBytes == 0) {
 				// WARNING que pasa acá?.
 			}else{
-        showbits(buffer[0]);
+        // showbits(buffer[0]);
 				char* payload = readBuffer(buffer, &id, &payloadSize);
 				if (id == 2) {
 					//Connection Established
@@ -162,17 +176,18 @@ int main(int argc, char const *argv[]) {
 					printf("  -> Tu contrincante es %s\n", contrincante);
 				}else if (id == 6) {
 					//Initial Pot
-					pot = atoi(payload);
+					pot = charsToInt(payload);
           printf("\nDinero inicial de %i\n", pot);
 				}else if (id == 7) {
 					//Game Start
           printf("\n---- El juego ha iniciado! ----\n");
 				}else if (id == 8) {
 					//Start Round
-					pot = atoi(payload);
+					pot = charsToInt(payload);
+          printf("Ha comenzado la ronda! Tu pot actual es de %i\n", pot);
 				}else if (id == 9) {
 					//Initial Bet
-					pot -= 10;
+					pot -= charsToInt(payload);;
           printf("\nPagando apuesta inicial\n  Dinero: %i -> %i\n", pot+10,pot);
 				}else if (id == 10) {
 					//5-Cards
