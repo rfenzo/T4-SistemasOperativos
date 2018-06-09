@@ -22,11 +22,11 @@ Card** handMaker(){
   return hand;
 }
 
-char* readBuffer(char* buffer, int* id){
+char* readBuffer(char* buffer, int* id, int* payloadSize){
   *id = (int) (buffer[0] -'0');
-  unsigned int payloadSize = (int)(buffer[1]-'0');
-  char* payload = malloc(payloadSize);
-  for (int i = 0; i < payloadSize; i++) {
+  *payloadSize = (int)(buffer[1]-'0');
+  char* payload = malloc(*payloadSize);
+  for (int i = 0; i < *payloadSize; i++) {
     payload[i] = buffer[2+i];
   }
   return payload;
@@ -37,7 +37,7 @@ void sendMessage(int socket, char* message){
 }
 
 void opponentFound(char** nicknames, struct pollfd* fds){
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 2; i++){
     char buffer[256];
     buffer[0] = 5+'0';
     buffer[1] = strlen(nicknames[i])+'0';
@@ -85,46 +85,57 @@ Card* getRandomCard(Card** deck){
   return NULL;
 }
 
-void send5Cards(struct pollfd* fds, Card** deck){
+void sendHand(struct pollfd fd, Card** hand){
   char buff[258];
+  buff[0] = 10+'0';
+  buff[1] = 10+'0';
+  Card* card;
+  for (int i = 0; i < 5; i++) {
+    card = hand[i];
+    buff[2*i+2] = card->numero+'0';
+    buff[2*i+3] = card->pinta+'0';
+  }
+  sendMessage(fd.fd, buff);
+}
+
+void sendBothHands(struct pollfd* fds, Card*** hands){
+  for (int i = 0; i < 2; i++) {
+    sendHand(fds[i],hands[i]);
+  }
+}
+
+void giveInitialCards(struct pollfd* fds, Card** deck, Card*** hands){
   for (int j = 0; j < 2; j++) {
-    buff[0] = 10+'0';
-    buff[1] = 10+'0';
     Card* card;
     for (int i = 0; i < 5; i++) {
       card = getRandomCard(deck);
       if (card) {
-        printf("jugador %i: numero %i, pinta %i\n",j,card->numero,card->pinta );
-        buff[2*i+2] = card->numero+'0';
-        buff[2*i+3] = card->pinta+'0';
-        // printf("|%c%c|", buff[2*i+2],buff[2*i+3]);
+        hands[j][i] = card;
       }else{
         //WARNING puede pasar esto?
         printf("ERROR: No quedan cartas en el mazo\n");
         break;
       }
     }
-    // printf("buffer sent %s\n", buff);
-    sendMessage(fds[j].fd, buff);
   }
 }
-
 
 bool compareCards(Card* card1, Card* card2){
   return (card1->numero == card2->numero && card1->pinta == card2->pinta);
 }
 
-void changeCards(Card** hand, char* payload, Card** deck){
-  Card** oldCards = malloc(sizeof(Card)*(sizeof(payload)/2));
-  for (int i = 0; i < sizeof(payload); i++) {
+void changeCards(Card** hand, char* payload, int payloadSize, Card** deck){
+  Card** oldCards = malloc(sizeof(Card)*(payloadSize/2));
+  for (int i = 0; i < payloadSize; i++) {
     if (i % 2 == 0) {
       oldCards[i/2]->numero = (int)payload[i];
     }else{
       oldCards[i/2]->pinta = (int)payload[i];
     }
   }
+
   //cambiar las cartas del player con unas nuevas
-  for (int j = 0; j < sizeof(payload)/2; j++) {
+  for (int j = 0; j < payloadSize/2; j++) {
     for (int i = 0; i < 5; i++) {
       if (compareCards(hand[i], oldCards[j])) {
         Card* newCard = getRandomCard(deck);
@@ -138,7 +149,6 @@ void changeCards(Card** hand, char* payload, Card** deck){
       }
     }
   }
-  //quizas se deba retornas las nuevas cartas
 }
 
 int main (int argc, char *argv[]){
@@ -171,15 +181,70 @@ int main (int argc, char *argv[]){
   fds[1].events = POLLIN;
 
   char* nicknames[2] = {malloc(sizeof(char*)),malloc(sizeof(char*))};
-  Card** hands[2] = {handMaker(),handMaker()};
+  Card** hands[2] = { handMaker(), handMaker() };
+  int pots[2] = {1000,1000};
   Card* deck[52];
 
   int timeout_msecs = 500;
-  int ret, i, readedBytes, id;
+  int ret, i, readedBytes, id, payloadSize;
   char buffer[258];
   int playercount = 0;
 
-  while(1){
+  bool startRound = false;
+  bool betsTime = false;
+  bool whosfirst = false;
+  bool waitPlayer0 = false;
+  bool waitPlayer1 = false;
+  int starter = 0; //permite alternar quien comienza las rondas
+  int turn;
+
+  while(true){
+    if (startRound) {
+      updatePots(fds, pots, 6);
+      initialBet(fds, pots);
+      giveInitialCards(fds, deck, hands);
+      sendBothHands(fds, hands);
+      //get cards to change
+      buffer[0] = 12 + '0';
+      buffer[1] = '0';
+      buffer[2] = '0';
+      sendMessage(fds[0].fd, buffer);
+      sendMessage(fds[1].fd, buffer);
+
+      startRound = false;
+      betsTime = true;
+      whosfirst = true;
+      waitPlayer0 = true;
+      waitPlayer1 = true;
+      turn = starter;
+    }else if (betsTime && !waitPlayer0 && !waitPlayer1) {
+      if (whosfirst) {
+        buffer[0] = 11 + '0';
+        buffer[1] = '1';
+        buffer[2] = '1';
+        sendMessage(fds[starter].fd, buffer);
+        buffer[2] = '2';
+        sendMessage(fds[1-starter].fd, buffer);
+        starter = 1-starter;
+        whosfirst = false;
+      }
+
+      if (turn == 0) {
+        buffer[0] = 14 +'0';
+        buffer[1] = 5 + '0';
+        for (i = 2; i < 7; i++) {
+          buffer[i] = i-1 + '0';
+        }
+        sendMessage(fds[0].fd, buffer);
+        turn = 1 - turn;
+        waitPlayer0 = true;
+      }else if (turn == 1){
+        //WARNING falta hacer el turno del segundo player
+        turn = 1 - turn;
+        waitPlayer1 = true;
+      }
+    }
+
     ret = poll(fds, 3, timeout_msecs);
     if (ret > 0) {
       for (i = 0; i < 3; i++) {
@@ -202,7 +267,7 @@ int main (int argc, char *argv[]){
 							fds[i].fd = -1;
 							// WARNING que pasa acá?.
 						}else{
-              char* payload = readBuffer(buffer, &id);
+              char* payload = readBuffer(buffer, &id, &payloadSize);
               if (id == 1) {
                 //Start Connection
                 printf("Cliente solicitó conexión\n");
@@ -220,23 +285,29 @@ int main (int argc, char *argv[]){
                   if (playercount == 2) {
                     opponentFound(nicknames, fds);
                     generateDeckOfCards(deck);
-                    send5Cards(fds, deck);
-
-                    printf("Envio Solicitud de cambiar\n");
-                    char buff[3];
-                    buff[0] = 12+'0';
-                    buff[1] = '0';
-                    sendMessage(fds[i].fd, buff);
-                    sendMessage(fds[1-i].fd, buff);
+                    //game start
+                    sendMessage(fds[0].fd, "700");
+                    sendMessage(fds[1].fd, "700");
+                    //initial pots
+                    startRound = true;
                   }
 
                 }else if (id == 13) {
                   //Return Cards to Change
-                  printf("Recibi cartas para cambiar");
-                  changeCards(hands[i], payload, deck);
+                  changeCards(hands[i], payload, payloadSize, deck);
+                  sendHand(fds[i], hands[i]);
+                  if (i == 0) {
+                    waitPlayer0 = false;
+                  }else if (i == 1) {
+                    waitPlayer1 = false;
+                  }
                 }else if (id == 15) {
                   //Return Bet
-                  //WARNING Falta hacer ésto
+                  if (i == 0) {
+                    waitPlayer0 = false;
+                  }else if (i == 1) {
+                    waitPlayer1 = false;
+                  }
                 }
               }else{
                 //WARNING que hacer?
