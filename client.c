@@ -183,6 +183,20 @@ int main(int argc, char const *argv[]) {
             printf("Size sended payload: %i\n", buffer[1]-'0');
 				}else if (id == 14) {
 					//Get Bet
+          char select[1];
+          printf("Te toca apostar! Elige tu apuesta:");
+          printf("FOLD: 1\n");
+          printf("0: 2\n");
+          printf("100: 3\n");
+          printf("200: 4\n");
+          printf("500: 5\n");
+          scanf("%s", select);
+
+          buffer[0] = 15+'0';
+          buffer[1] = '1';
+          buffer[2] = atoi(select);
+          sendMessage(socket, buffer);
+
 				}else if (id == 15) {
 					//Return Bet
 				}else if (id == 16) {
