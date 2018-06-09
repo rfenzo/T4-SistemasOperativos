@@ -407,14 +407,15 @@ int main (int argc, char *argv[]){
         //initial bet, envia monto de apuesta inicial y descuenta de su pot
         perdedor = initialBet(fds[i], pots[i], bets[i]);
         if (perdedor == -1) {
-          int stat = sendImage(fds[i], 0);
-          if (stat != 0) {
-            printf("Error al enviar imagen, stat de sendImage %i\n", stat);
-          }
+          sendImage(fds[i], 1);
+          sendImage(fds[1-i], 0);
+
           buffer[0] = 22;
           buffer[1] = 0;
           buffer[2] = 0;
           sendMessage(fds[i].fd, buffer);
+          sendMessage(fds[1-i].fd, buffer);
+          return 0;
         }
         //setea en el servidor las cartas de los jugadores
         giveInitialCards(fds[i], deck, hands[i]);
