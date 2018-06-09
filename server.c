@@ -205,9 +205,13 @@ void winnerLoser(struct pollfd fdsWinner,struct pollfd fdsLoser){
 
 void finish(struct pollfd* fds, int winner, int* bets, int* pots, Card*** hands){
   char buff[200];
-
+  //Actualizo Pots y bets
   pots[winner] += bets[0];
   pots[winner] += bets[1];
+  bets[0] = 0;
+  bets[1] = 0;
+
+
   //Envio ronda Termino
   for (int p=0;p<2;p++){
     buff[0] = 18;
@@ -238,6 +242,11 @@ for (int p=0;p<2;p++){
     buff[2]=1;
   }else{buff[2]=2;}
   sendMessage(fds[p].fd, buff);
+  }
+
+  //Envio update pots
+  for (int p=0; p<2;p++){
+    sendInteger(fds[p], pots[p], 11);
   }
 
 }
@@ -273,7 +282,12 @@ int changeBet(int* bets, int* pots, int bet_id, int player){
   return 1;
 }
 
-
+int betIdToInt(int id){
+  if(id==3)return 100;
+  else if (id==4) return 200;
+  else if (id==5) return 500;
+  else return 0;
+}
 
 void betOptions(int* buffer, int* money_available, int* pots, int player, int move){
   for (int e=0; e<5; e++){
@@ -298,9 +312,9 @@ void betOptions(int* buffer, int* money_available, int* pots, int player, int mo
 
 }
 
-void printMoneyAvailable(int* ma){
-  printf(" Dinero 1: %i\n", ma[0]);
-  printf("Dinero 2: %i\n", ma[1]);
+void printBets(int* ma){
+  printf("Bet 1: %i\n", ma[0]);
+  printf("Bet 2: %i\n", ma[1]);
 }
 
 int main (int argc, char *argv[]){
@@ -380,12 +394,23 @@ int main (int argc, char *argv[]){
       betsTime = true;
       waitPlayer0 = true;
       waitPlayer1 = true;
+      starter = 1 - starter;
       turn = starter;
       move = 1;
     }else if (betsTime && !waitPlayer0 && !waitPlayer1) {
-      if (turn == 0 && move == 1) {
+      if (move == 1) {
         //Envío Apuestas Disponibles - Estoy enviando todas
         //betOptions(&possible_bets, &money_available, &pots, i, move);
+
+        //Envio id 11 de si parto o espero
+        buffer[0]=11;
+        buffer[1]=1;
+        buffer[2]=1;
+        sendMessage(fds[turn].fd, buffer);
+        buffer[2]=2;
+        sendMessage(fds[1-turn].fd, buffer);
+
+
         printf("Enviando a primero\n");
         buffer[0] = 14;
         buffer[1] = 4 ;
@@ -394,13 +419,10 @@ int main (int argc, char *argv[]){
         buffer[4] = 4 ;
         buffer[5] = 5 ;
 
-        sendMessage(fds[0].fd, buffer);
+        sendMessage(fds[turn].fd, buffer);
+        if (turn==0){waitPlayer0=true;}
+        else if (turn==1){waitPlayer1=true;}
         turn = 1 - turn;
-        waitPlayer0 = true;
-      }else if (turn == 1){
-        //WARNING falta hacer el turno del segundo player
-        turn = 1 - turn;
-        waitPlayer1 = true;
       }
     }
 
@@ -482,14 +504,23 @@ int main (int argc, char *argv[]){
                   printf("Recibi apuesta %i\n", bet_id);
                   // showbits(payload[0]);
                   printf("Ahora le toca a :%i\n", 1-i);
+                  printf("Move :%i\n", move);
 
+                  int apuesta = betIdToInt(bet_id);
+                  if (apuesta > bets[i]+pots[i]){
+                    //Send Error bet
+                    buffer[0] = 16;
+                    buffer[1] = 0;
+                    sendMessage(fds[i].fd, buffer);
+
+                  }else{
 
                   int valid = changeBet(bets, pots, bet_id, i);
-                  printMoneyAvailable(bets);
+                  printBets(bets);
 
                   if (move == 2){
                     printf("bet del anterior: %i\n", bets[i]);
-                    if (bet_id == 1){finish(fds, 1-i, bets, pots, hands); startRound=true;}
+                    if (bet_id == 1){finish(fds, 1-i, bets, pots, hands); startRound=true; move=1;}
                     if (bets[i]==10){
                       buffer[0] = 14;
                       buffer[1] = 5 ;
@@ -533,7 +564,8 @@ int main (int argc, char *argv[]){
                     waitPlayer1 = false;
                   }
                   if (move == 3){
-                    if (bet_id == 1){finish(fds, 1-i, bets, pots, hands); startRound=true;}
+
+                    if (bet_id == 1){finish(fds, 1-i, bets, pots, hands); startRound=true; move=1;}
                     if (bets[i]==bets[1-i]){printf("Termino");}
                     else{
                       if (bets[i]==100){
@@ -558,11 +590,11 @@ int main (int argc, char *argv[]){
 
                     }
                   }else if (move == 4){
-                    if (bet_id == 1){finish(fds, 1-i, bets, pots, hands); startRound=true;}
+                    if (bet_id == 1){finish(fds, 1-i, bets, pots, hands); startRound=true; move=1;}
                     else{finish(fds, 1-i, bets, pots, hands); startRound=true;} //aqui hay que determinar quien gana
 
                   }
-
+                }
                 }else if (id > 24 || id<1) {
         					//Error Not Implemented
                   buffer[0]=24;

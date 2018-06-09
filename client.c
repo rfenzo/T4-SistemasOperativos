@@ -206,10 +206,11 @@ int main(int argc, char const *argv[]) {
 					}
 				}else if (id == 11) {
 					//Who's First
-          if (atoi(payload) == 1) {
+          int numero = payload[0];
+          if (numero== 1) {
             printf("Tu comienzas esta ronda! \n");
-          }else if (atoi(payload) == 2) {
-            printf("Esta ronda comienza %s, debes esperar su apuesta\n", contrincante);
+          }else if (numero == 2) {
+            printf("Esta ronda comienza %s, debes esperar su apuesta.\n", contrincante);
           }
 				}else if (id == 12) {
           //Get Cards to Change
@@ -257,6 +258,8 @@ int main(int argc, char const *argv[]) {
 					//Return Bet
 				}else if (id == 16) {
 					//Error Bet
+          printf("Tu apuesta no es valida, vuelve a ingresar una apuesta\n");
+          
 				}else if (id == 17) {
 					//Ok Bet
 				}else if (id == 18) {
