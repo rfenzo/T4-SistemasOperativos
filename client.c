@@ -16,6 +16,14 @@ struct card{
 };
 typedef struct card Card;
 
+void showbits(char x){
+    int i;
+    for(i=(sizeof(x)*8)-1; i>=0; i--)
+            (x&(1u<<i))?putchar('1'):putchar('0');
+
+    printf("\n");
+}
+
 int initializeClient(char* ip, int port){
   struct sockaddr_in serverAddr;
   socklen_t addr_size;
@@ -41,8 +49,9 @@ void sendMessage(int socket, char* message){
 }
 
 char* readBuffer(char* buffer, int* id, int* payloadSize){
-  *id = (int) (buffer[0] -'0');
-  *payloadSize = (int)(buffer[1]-'0');
+  printf("Recibo bits "); showbits(buffer[0]); printf(" Y los interpreto como %i\n", (int) (buffer[0]));
+  *id = (int) (buffer[0]);
+  *payloadSize = (int)(buffer[1]);
   char* payload = malloc(*payloadSize);
   for (int i = 0; i < *payloadSize; i++) {
     payload[i] = buffer[2+i];
@@ -71,6 +80,12 @@ char numberToCardChar(int numero){
     return 'Q';
   }else if (numero == 13) {
     return 'K';
+  }
+  else if (numero == 1) {
+    return 'A';
+  }
+  else if (numero == 10) {
+    return 'D';
   }else{
     return numero + '0';
   }
@@ -112,7 +127,11 @@ int main(int argc, char const *argv[]) {
 
 
 	printf("Solicitando participar en el juego\n");
-	sendMessage(socket, "100");
+  buffer[0] = 1;
+  buffer[1] = 0;
+  showbits(buffer[0]);
+  showbits(buffer[1]);
+	sendMessage(socket, buffer);
 
 	while(1){
 		ret = poll(fds, 1, timeout_msecs);
@@ -121,6 +140,7 @@ int main(int argc, char const *argv[]) {
 			if (readedBytes == 0) {
 				// WARNING que pasa acá?.
 			}else{
+        showbits(buffer[0]);
 				char* payload = readBuffer(buffer, &id, &payloadSize);
 				if (id == 2) {
 					//Connection Established
@@ -130,8 +150,8 @@ int main(int argc, char const *argv[]) {
 				  printf("\nIngresa tu nombre de usuario: ");
 					char nickname[256];
 				  scanf("%s", nickname);
-					buffer[0] = '4';
-					buffer[1] = strlen(nickname)+'0';
+					buffer[0] = 4;
+					buffer[1] = strlen(nickname);
 					buffer[2] = 0; // hace que se concatene desde buffer[2]
 					strcat(buffer,nickname);
 					sendMessage(socket, buffer);
@@ -159,8 +179,8 @@ int main(int argc, char const *argv[]) {
 					printf("\nAquí estan tus cartas:\n");
           // setlocale(LC_CTYPE, "");
 					for (i = 0; i < 5; i++) {
-						hand[i]->numero = payload[2*i]-'0';
-						hand[i]->pinta = payload[2*i+1]-'0';
+						hand[i]->numero = payload[2*i];
+						hand[i]->pinta = payload[2*i+1];
 						hand[i]->valid = true;
             printf("  %i: ",i+1);
             printCard(hand[i]);
@@ -186,8 +206,8 @@ int main(int argc, char const *argv[]) {
 						}
 					}
           char carta[1];
-          buffer[0]= 13 +'0';
-					buffer[1]= i*2 +'0';
+          buffer[0]= 13;
+					buffer[1]= i*2;
 					for (int c=0; c<i; c++){
 						printf("Carta %i/%i: Ingresa Nº de carta a cambiar: ", c+1, i);
 						scanf("%s", carta);
@@ -203,15 +223,18 @@ int main(int argc, char const *argv[]) {
           char select[1];
           printf("Elige tu apuesta:\n");
           char betname[4];
+
           for (i = 0; i < payloadSize; i++) {
-            formatBet(payload[i]-'0',betname);
-            printf("  %i: %s\n",i+1, betname);
+            printf("Show bits bet payload: %i\n",payload[i] );
+            formatBet(payload[i], betname);
+            printf("  %i: %s\n",payload[i], betname);
           }
           scanf("%s", select);
-          buffer[0] = 15+'0';
-          buffer[1] = '1';
+          buffer[0] = 15;
+          buffer[1] = 1;
           buffer[2] = atoi(select);
           sendMessage(socket, buffer);
+          printf("Estoy enviando opcion: %i\n", buffer[2]);
 				}else if (id == 15) {
 					//Return Bet
 				}else if (id == 16) {

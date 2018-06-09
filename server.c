@@ -7,6 +7,9 @@
 #include <stdbool.h>
 #include <time.h>
 
+
+
+
 struct card{
   int pinta;
   int numero;
@@ -22,9 +25,17 @@ Card** handMaker(){
   return hand;
 }
 
+void showbits(char x){
+    int i;
+    for(i=(sizeof(x)*8)-1; i>=0; i--)
+            (x&(1u<<i))?putchar('1'):putchar('0');
+
+    printf("\n");
+}
+
 char* readBuffer(char* buffer, int* id, int* payloadSize){
-  *id = (int) (buffer[0] -'0');
-  *payloadSize = (int)(buffer[1]-'0');
+  *id = (int) (buffer[0]);
+  *payloadSize = (int)(buffer[1]);
   char* payload = malloc(*payloadSize);
   for (int i = 0; i < *payloadSize; i++) {
     payload[i] = buffer[2+i];
@@ -39,11 +50,13 @@ void sendMessage(int socket, char* message){
 void opponentFound(char** nicknames, struct pollfd* fds){
   for (int i = 0; i < 2; i++){
     char buffer[256];
-    buffer[0] = 5+'0';
-    buffer[1] = strlen(nicknames[i])+'0';
+    buffer[0] = 5;
+    buffer[1] = strlen(nicknames[i]);
     buffer[2] = 0; // hace que se concatene desde buffer[2]
     strcat(buffer,nicknames[i]);
     sendMessage(fds[1-i].fd, buffer);
+    printf("Mostrando id 5:" );
+    showbits(buffer[0]);
   }
 }
 
@@ -87,13 +100,13 @@ Card* getRandomCard(Card** deck){
 
 void sendHand(struct pollfd fd, Card** hand){
   char buff[258];
-  buff[0] = 10+'0';
-  buff[1] = 10+'0';
+  buff[0] = 10;
+  buff[1] = 10;
   Card* card;
   for (int i = 0; i < 5; i++) {
     card = hand[i];
-    buff[2*i+2] = card->numero+'0';
-    buff[2*i+3] = card->pinta+'0';
+    buff[2*i+2] = card->numero;
+    buff[2*i+3] = card->pinta;
   }
   sendMessage(fd.fd, buff);
 }
@@ -155,8 +168,8 @@ void changeCards(Card** hand, char* payload, int payloadSize, Card** deck){
 void updatePots(struct pollfd* fds, int* pots, int id){
   char buff[258];
   for (int i = 0; i < 2; i++) {
-    buff[0] = id+'0';
-    buff[1] = sizeof(pots[i]) + '0';
+    buff[0] = id;
+    buff[1] = 1;
     char* array = malloc(sizeof(int));
     sprintf( array, "%i", pots[i]);
     for (int j = 0; j < 4; j++) {
@@ -168,26 +181,31 @@ void updatePots(struct pollfd* fds, int* pots, int id){
 
 void winnerLoser(struct pollfd fdsWinner,struct pollfd fdsLoser){
   char buff[3];
-  buff[0] = 20 +'0';
-  buff[1] = '1';
-  buff[2] = '1';
+  buff[0] = 20 ;
+  buff[1] = 1;
+  buff[2] = 1;
   sendMessage(fdsWinner.fd, buff);
-  buff[2] = '2';
+  buff[2] = 2;
   sendMessage(fdsWinner.fd, buff);
 }
 
-void initialBet(struct pollfd* fds, int* pots){
+void initialBet(struct pollfd* fds, int* pots, int* bets){
   for (int i = 0; i < 2; i++) {
     if (pots[i] >= 10) {
       pots[i] -= 10;
-      sendMessage(fds[i].fd, "900");
+      bets[i] += 10;
+      char buff[3];
+      buff[0] = 9;
+      buff[1] = 1;
+      buff[2] = 10;
+      sendMessage(fds[i].fd, buff);
     }else{
       // winnerLoser(fds[i-1], fds[i]);
       // updatePots(fds, pots, 21);
       char buff[3];
-      buff[0] = 22 +'0';
-      buff[1] = '0';
-      buff[2] = '0';
+      buff[0] = 22 ;
+      buff[1] = 0;
+      buff[2] = 0;
       sendMessage(fds[i].fd, buff);
       sendMessage(fds[1-i].fd, buff);
       break;
@@ -195,11 +213,55 @@ void initialBet(struct pollfd* fds, int* pots){
   }
 }
 
+int changeBet(int* bets, int* pots, int bet_id, int player){
+  if (bet_id == 2){ return 0;}
+  else if (bet_id == 3){
+    bets[player] += 100;
+    pots[player] -= 100;
+  }else if (bet_id == 4){
+    bets[player] += 200;
+    pots[player] -= 200;
+  }else if (bet_id == 5){
+    bets[player] += 500;
+    pots[player] -= 500;
+  }
+  return 1;
+}
+
+void betOptions(int* buffer, int* money_available, int* pots, int player, int move){
+  for (int e=0; e<5; e++){
+    buffer[e] = 0;
+  }
+  int diferencia_apuestas = pots[1-player] - pots[1-player];
+  //int diferencia_pots = pots[1-player] - pots[1-player];
+  int limite = money_available[1-player] + diferencia_apuestas;
+
+  printf("Limite: %i  Mi Pozo: %i  move: %i\n", limite, pots[player], move);
+  if (move > 1){buffer[0]=1;}
+  if (pots[1-player]==pots[player]){buffer[1]=1;}
+  if (limite>=100 && money_available[player]>=100){buffer[2]=1;}
+  if (limite>=200 && money_available[player]>=200){buffer[3]=1;}
+  if (limite>=500 && money_available[player]>=500){buffer[4]=1;}
+  printf("Imprimiento opciones de apuesta:\n");
+  for (int e=0; e<5; e++){
+    printf("%i", buffer[e]);
+  }
+  printf("\n");
+
+
+}
+
+void printMoneyAvailable(int* ma){
+  printf(" Dinero 1: %i\n", ma[0]);
+  printf("Dinero 2: %i\n", ma[1]);
+}
+
 int main (int argc, char *argv[]){
 	if (argc != 3) {
 		printf("Número de argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
 		return 1;
 	}
+
 
 	int welcomeSocket;
 	struct sockaddr_in serverAddr;
@@ -226,7 +288,8 @@ int main (int argc, char *argv[]){
 
   char* nicknames[2] = {malloc(sizeof(char*)),malloc(sizeof(char*))};
   Card** hands[2] = { handMaker(), handMaker() };
-  int pots[2] = {1000,1000};
+  int pots[2] = {100,100};
+  int bets[2] = {0,0};
   Card* deck[52];
 
   int timeout_msecs = 500;
@@ -241,17 +304,18 @@ int main (int argc, char *argv[]){
   bool waitPlayer1 = false;
   int starter = 0; //permite alternar quien comienza las rondas
   int turn;
+  int move;
 
   while(true){
     if (startRound) {
-      updatePots(fds, pots, 6);
-      initialBet(fds, pots);
+      updatePots(fds, pots, 6); //fix
+      initialBet(fds, pots, bets); //fix
       giveInitialCards(fds, deck, hands);
       sendBothHands(fds, hands);
       //get cards to change
-      buffer[0] = 12 + '0';
-      buffer[1] = '0';
-      buffer[2] = '0';
+      buffer[0] = 12 ;
+      buffer[1] = 0;
+      buffer[2] = +0;
       sendMessage(fds[0].fd, buffer);
       sendMessage(fds[1].fd, buffer);
 
@@ -261,24 +325,31 @@ int main (int argc, char *argv[]){
       waitPlayer0 = true;
       waitPlayer1 = true;
       turn = starter;
+      move = 1;
     }else if (betsTime && !waitPlayer0 && !waitPlayer1) {
       if (whosfirst) {
-        buffer[0] = 11 + '0';
-        buffer[1] = '1';
-        buffer[2] = '1';
+        buffer[0] = 11;
+        buffer[1] = 1;
+        buffer[2] = 1;
         sendMessage(fds[starter].fd, buffer);
-        buffer[2] = '2';
+        buffer[2] = 1;
         sendMessage(fds[1-starter].fd, buffer);
         starter = 1-starter;
         whosfirst = false;
       }
 
-      if (turn == 0) {
-        buffer[0] = 14 +'0';
-        buffer[1] = 5 + '0';
-        for (i = 2; i < 7; i++) {
-          buffer[i] = i-1 + '0';
-        }
+      if (turn == 0 && move == 1) {
+        //Envío Apuestas Disponibles - Estoy enviando todas
+        //betOptions(&possible_bets, &money_available, &pots, i, move);
+        printf("Enviando a primero\n");
+        buffer[0] = 14;
+        buffer[1] = 4 ;
+        buffer[2] = 2 ;
+        buffer[3] = 3 ;
+        buffer[4] = 4 ;
+        buffer[5] = 5 ;
+
+
         sendMessage(fds[0].fd, buffer);
         turn = 1 - turn;
         waitPlayer0 = true;
@@ -310,13 +381,21 @@ int main (int argc, char *argv[]){
 							fds[i].fd = -1;
 							// WARNING que pasa acá?.
 						}else{
+
               char* payload = readBuffer(buffer, &id, &payloadSize);
+              char aux;
+              aux = id;
+              showbits(aux);
               if (id == 1) {
                 //Start Connection
                 printf("Cliente solicitó conexión\n");
-                sendMessage(fds[i].fd, "200");
+                buffer[0] = 2;
+                buffer[1] = 0;
+                sendMessage(fds[i].fd, buffer);
                 //solicitar nickname;
-                sendMessage(fds[i].fd, "300");
+                buffer[0] = 3;
+                buffer[1] = 0;
+                sendMessage(fds[i].fd, buffer);
               }else if (id == 24) {
                 //Error Not Implemented
               }else if (fds[i].fd > 0) {
@@ -329,8 +408,10 @@ int main (int argc, char *argv[]){
                     opponentFound(nicknames, fds);
                     generateDeckOfCards(deck);
                     //game start
-                    sendMessage(fds[0].fd, "700");
-                    sendMessage(fds[1].fd, "700");
+                    buffer[0]=7;
+                    buffer[1]=0;
+                    sendMessage(fds[0].fd, buffer);
+                    sendMessage(fds[1].fd, buffer);
                     //initial pots
                     startRound = true;
                   }
@@ -345,11 +426,28 @@ int main (int argc, char *argv[]){
                   }
                 }else if (id == 15) {
                   //Return Bet
+                  move += 1;
+                  int bet_id=0;
+                  if (payload[0]<2){bet_id=1;}
+                  else if(payload[0]>1 && payload[0]<3){bet_id=2;}
+                  else if(payload[0]>2 && payload[0]<4){bet_id=3;}
+                  else if(payload[0]>3 && payload[0]<5){bet_id=4;}
+                  else if(payload[0]>4){bet_id=5;}
+                  printf("Recibi apuesta %i\n", bet_id);
+                  showbits(payload[0]);
+                  printf("Ahora le toca a :%i\n", 1-i);
+                  int valid = changeBet(bets, pots, bet_id, i);
+                  printMoneyAvailable(bets);
                   if (i == 0) {
                     waitPlayer0 = false;
+
                   }else if (i == 1) {
                     waitPlayer1 = false;
                   }
+                  if (move == 2){
+                    printf("SII");
+                  }
+
                 }
               }else{
                 //WARNING que hacer?
