@@ -18,14 +18,10 @@ void showbits(char x){
     printf("\n");
 }
 
-
 int charsToInt(char* input) {
   //formato de envio: 2 chars en BigEndian. Ej para 1000 sería:
   // 00000011
   // 11101000
-  printf("Entro a charsToInt: \n");
-  showbits(input[0]);
-  showbits(input[1]);
   int result = 0;
   for (int j = 0; j < 2; j++) {
     for(int i = 7; i >= 0; i--) {
@@ -44,8 +40,6 @@ struct card{
 	bool valid;
 };
 typedef struct card Card;
-
-
 
 int initializeClient(char* ip, int port){
   struct sockaddr_in serverAddr;
@@ -141,7 +135,7 @@ int main(int argc, char const *argv[]) {
 	int timeout_msecs = 1000;
 	int ret, readedBytes, id, pot, i, payloadSize;
 	char buffer[258];
-	char contrincante[256];
+	char* contrincante = malloc(256);
 	Card* hand[5] = {malloc(sizeof(Card)),malloc(sizeof(Card)),
                   malloc(sizeof(Card)),malloc(sizeof(Card)),
                   malloc(sizeof(Card))};
@@ -153,8 +147,6 @@ int main(int argc, char const *argv[]) {
 	printf("Solicitando participar en el juego\n");
   buffer[0] = 1;
   buffer[1] = 0;
-  // showbits(buffer[0]);
-  // showbits(buffer[1]);
 	sendMessage(socket, buffer);
 
 	while(1){
@@ -164,9 +156,7 @@ int main(int argc, char const *argv[]) {
 			if (readedBytes == 0) {
 				// WARNING que pasa acá?.
 			}else{
-        // showbits(buffer[0]);
 				char* payload = readBuffer(buffer, &id, &payloadSize);
-        printf("ID %i\n", id);
 				if (id == 2) {
 					//Connection Established
 					printf("  -> Solicitud aceptada!\n");
@@ -177,7 +167,7 @@ int main(int argc, char const *argv[]) {
 				  scanf("%s", nickname);
 					buffer[0] = 4;
 					buffer[1] = strlen(nickname);
-					buffer[2] = 0; // hace que se concatene desde buffer[2]
+					buffer[2] = 0;
 					strcat(buffer,nickname);
 					sendMessage(socket, buffer);
           printf("  -> Esperando un contrincante...\n");
@@ -203,7 +193,6 @@ int main(int argc, char const *argv[]) {
 				}else if (id == 10) {
 					//5-Cards
 					printf("\nAquí estan tus cartas:\n");
-          // setlocale(LC_CTYPE, "");
 					for (i = 0; i < 5; i++) {
 						hand[i]->numero = payload[2*i];
 						hand[i]->pinta = payload[2*i+1];
@@ -216,16 +205,16 @@ int main(int argc, char const *argv[]) {
 					//Who's First
           int numero = payload[0];
           if (numero== 1) {
-            printf("Tu comienzas esta ronda! \n");
+            printf("\nTu comienzas en esta nueva ronda! \n");
           }else if (numero == 2) {
-            printf("Esta ronda comienza %s, debes esperar su apuesta.\n", contrincante);
+            printf("\nEsta ronda comienza %s, debes esperar su apuesta.\n", contrincante);
           }
 				}else if (id == 12) {
           //Get Cards to Change
 					i = 10;
 					char* amount = malloc(1);
 					while (i<0 || i>5){
-						printf("¿Cuantas Cartas quieres cambiar?\n");
+						printf("\n¿Cuantas Cartas quieres cambiar? : ");
 						scanf("%s", amount);
 						i = atoi(amount);
 						if (i<0 && i>5){
@@ -250,33 +239,37 @@ int main(int argc, char const *argv[]) {
           char select[1];
           printf("Elige tu apuesta:\n");
           char betname[4];
-
           for (i = 0; i < payloadSize; i++) {
-            printf("Show bits bet payload: %i\n",payload[i] );
             formatBet(payload[i], betname);
-            printf("  %i: %s\n",payload[i], betname);
+            printf("  Opcion %i: %s\n",payload[i], betname);
           }
+          printf("Opcion: ");
           scanf("%s", select);
           buffer[0] = 15;
           buffer[1] = 1;
           buffer[2] = atoi(select);
           sendMessage(socket, buffer);
-          printf("Estoy enviando opcion: %i\n", buffer[2]);
-				}else if (id == 15) {
-					//Return Bet
+          printf("Opcion %i enviada", buffer[2]);
 				}else if (id == 16) {
 					//Error Bet
-          printf("Tu apuesta no es valida, vuelve a ingresar una apuesta\n");
-
+          printf(" pero rechazada por el servidor, vuelve a ingresar una apuesta... \n");
+          char select[1];
+          printf("Opcion: ");
+          scanf("%s", select);
+          buffer[0] = 15;
+          buffer[1] = 1;
+          buffer[2] = atoi(select);
+          sendMessage(socket, buffer);
+          printf("Opcion %i enviada", buffer[2]);
 				}else if (id == 17) {
 					//Ok Bet
+          printf(" y aceptada por el servidor, esperando al otro jugador\n");
 				}else if (id == 18) {
 					//End Round
-          printf("Ha TERMINADO esta RONDA\n");
+          printf("\nLa ronda ha terminado!\n");
 				}else if (id == 19) {
 					//Show Opponent Cards
-          printf("Aquí estan las cartas de tu OPONENTE:\n");
-          // setlocale(LC_CTYPE, "");
+          printf("\nAquí estan las cartas de tu OPONENTE:\n");
 					for (i = 0; i < 5; i++) {
 						oponent_hand[i]->numero = payload[2*i];
 						oponent_hand[i]->pinta = payload[2*i+1];
@@ -287,8 +280,8 @@ int main(int argc, char const *argv[]) {
 					}
 				}else if (id == 20) {
 					//Winner/Loser
-          if (payload[0] == 1){printf("GANASTE!\n");}
-          else if (payload[0] == 2){printf("PERDSTE!!\n");}
+          if (payload[0] == 1){printf("\n---- GANASTE ESTA RONDA! ----\n");}
+          else if (payload[0] == 2){printf("\n---- PERDISTE ESTA RONDA! ----\n");}
 				}else if (id == 21) {
 					//Update Pot
           pot = charsToInt(payload);
