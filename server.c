@@ -151,6 +151,7 @@ bool compareCards(Card* card1, Card* card2){
 }
 
 int identifyWinner(Card* hand1, Card* hand2){
+  
   return 0;
 }
 
