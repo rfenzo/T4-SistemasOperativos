@@ -53,7 +53,6 @@ Card** handMaker(){
   return hand;
 }
 
-
 char* readBuffer(char* buffer, int* id, int* payloadSize){
   *id = (int) (buffer[0]);
   *payloadSize = (int)(buffer[1]);
@@ -150,9 +149,109 @@ bool compareCards(Card* card1, Card* card2){
   return (card1->numero == card2->numero && card1->pinta == card2->pinta);
 }
 
-int identifyWinner(Card* hand1, Card* hand2){
-  
-  return 0;
+int hand_value(int class, int rank){
+	return (13 * class) + rank;
+}
+
+int card_comparator(const void* a, const void * b){
+  const Card * c1 = *(const Card **)a;
+  const Card * c2 = *(const Card **)b;
+  return (c1->numero - c2->numero);
+}
+
+void sort_cards(Card** cards){
+	qsort(cards, 5, sizeof(Card*), card_comparator);
+}
+
+int getPoints(Card** hand, char* nickname){
+  int i, oneP, twoP, threeP, fourP, fiveP, oneN, twoN, threeN, fourN, fiveN;
+  sort_cards(hand);
+
+  oneP   = hand[0]->pinta; oneN = hand[0]->numero;
+  twoP   = hand[1]->pinta; twoN = hand[1]->numero;
+  threeP = hand[2]->pinta; threeN = hand[2]->numero;
+  fourP  = hand[3]->pinta; fourN = hand[3]->numero;
+  fiveP  = hand[4]->pinta; fiveN = hand[4]->numero;
+
+  if ((oneP == twoP && twoP == threeP && threeP == fourP && fourP == fiveP) &&
+  (oneN == 10 && twoN == 11 && threeN == 12 && fourN == 13 && fiveN == 1)){
+    printf("Jugador %s, Royal Flush\n", nickname);
+    return hand_value(9, fiveN);
+  }
+
+  /* Straight Flush */
+  /* has a class rank of 9 */
+  if (oneP == twoP && twoP == threeP && threeP == fourP && fourP == fiveP &&
+    fiveN == fourN + 1 && fourN == threeN + 1 && threeN == twoN + 1 && twoN == oneN + 1){
+      printf("Jugador %s, Straight Flush\n", nickname);
+      return hand_value(9, fiveN);
+  }
+
+  /* Four-of-a-Kind */
+  /* has a class rank of 8 */
+  if ((oneN == twoN && twoN == threeN && threeN == fourN) ||
+    (twoN == threeN && threeN == fourN && fourN == fiveN)){
+      printf("Jugador %s, Four of a kind\n", nickname);
+      return hand_value(8, threeN);
+  }
+
+  /* Full House */
+  /* has a class of 7 */
+  if ((oneN == twoN && twoN == threeN && fourN == fiveN) ||
+      (oneN == twoN && threeN == fourN && fourN == fiveN)) {
+      printf("Jugador %s, Full House\n", nickname);
+      return hand_value(7, fiveN);
+  }
+
+  /* Flush */
+  /* has a class of 6 */
+  if (oneP == twoP && twoP == threeP && threeP == fourP && fourP == fiveP){
+    printf("Jugador %s, Flush\n", nickname);
+    return hand_value(6, fiveN);
+  }
+
+
+  /* Straight */
+  /* has a class of 5 */
+  if (fiveN == fourN+1 && fourN+1 == threeN+2 && threeN+2 == twoN+3 && twoN+3 == oneN+4){
+    printf("Jugador %s, Straight\n", nickname);
+    return hand_value(5, fiveN);
+  }
+
+  /* Three-of-a-Kind */
+  /* has a class rank of 4 */
+  for (i = 0; i < 5 - 2; ++i){
+    if ((hand[i]->numero == hand[i+1]->numero) && (hand[i+1]->numero == hand[i+2]->numero)){
+      printf("Jugador %s, 3 of a kind\n", nickname);
+      return hand_value(4, threeN);
+    }
+  }
+
+  /* Two-Pair */
+  /* has a class rank of 3 */
+  if ((oneN == twoN && threeN == fourN) ||
+    (twoN == threeN && fourN == fiveN) ||
+    (oneN == twoN && fourN == fiveN)) {
+      printf("Jugador %s, Two Pair\n", nickname);
+      return hand_value(4, fourN);
+  }
+
+  /* One-Pair */
+  /* has a class rank of 2 */
+  for (i = 0; i < 5-1; ++i) {
+    if (hand[i]->numero == hand[i+1]->numero){
+      printf("Jugador %s, One Pair\n", nickname);
+      return hand_value(2, hand[i]->numero);
+    }
+  }
+  /* High Card */
+  /* has a class rank of 1 */
+  printf("Jugador %s, High - Card\n", nickname);
+  return hand_value(1, fiveN);
+}
+
+int identifyWinner(Card*** hands, char** nicknames){
+  return getPoints(hands[0],nicknames[0]) < getPoints(hands[1],nicknames[1]);
 }
 
 void changeCards(Card** hand, char* payload, int payloadSize, Card** deck){
@@ -251,19 +350,14 @@ void finish(struct pollfd* fds, int winner, int* bets, int* pots, Card*** hands)
   }
 }
 
-int initialBet(struct pollfd fd, int* pot, int* bet){
-  if (*pot >= 10) {
-    *pot -= 10;
-    *bet += 10;
-    char buff[200];
-    buff[0] = 9;
-    buff[1] = 1;
-    buff[2] = 10;
-    sendMessage(fd.fd, buff);
-    return 0;
-  }else{
-    return -1;
-  }
+void initialBet(struct pollfd fd, int* pot, int* bet){
+  *pot -= 10;
+  *bet += 10;
+  char buff[200];
+  buff[0] = 9;
+  buff[1] = 1;
+  buff[2] = 10;
+  sendMessage(fd.fd, buff);
 }
 
 void changeBet(int* bets, int* pots, int bet_id, int player){
@@ -292,7 +386,6 @@ void betOptions(int* buffer, int* money_available, int* pots, int player, int mo
     buffer[e] = 0;
   }
   int diferencia_apuestas = pots[1-player] - pots[1-player];
-  //int diferencia_pots = pots[1-player] - pots[1-player];
   int limite = money_available[1-player] + diferencia_apuestas;
 
   printf("Limite: %i  Mi Pozo: %i  move: %i\n", limite, pots[player], move);
@@ -306,11 +399,6 @@ void betOptions(int* buffer, int* money_available, int* pots, int player, int mo
     printf("%i", buffer[e]);
   }
   printf("\n");
-}
-
-void printBets(int* ma){
-  printf("Bet 1: %i\n", ma[0]);
-  printf("Bet 2: %i\n", ma[1]);
 }
 
 int sendImage(struct pollfd fd,int tipo){
@@ -352,11 +440,8 @@ int sendImage(struct pollfd fd,int tipo){
   return 0;
 }
 
-int getMinBet(int otherPlayerBet, bool firstTurn){
+int getMinBet(int otherPlayerBet){
   if (otherPlayerBet == 10) {
-    if (!firstTurn) {
-      return 1;
-    }
     return 2;
   }else if (otherPlayerBet == 100) {
     return 3;
@@ -370,13 +455,17 @@ int getMinBet(int otherPlayerBet, bool firstTurn){
 
 void sendAvailableBets(struct pollfd* fds, int* bets, int turn, bool firstTurn){
   char buffer[50];
-  int minBet = getMinBet(bets[1-turn], firstTurn);
+  int minBet = getMinBet(bets[1-turn]);
   if (minBet < 0) {
     printf("Error! Revisar getMinBet linea ~484\n");
   }
   buffer[0] = 14;
-  buffer[1] = 6-minBet;
   int j = 2;
+  if (!firstTurn) {
+    buffer[2] = 1;
+    j = 3;
+  }
+  buffer[1] = 6-minBet+(j-2);
   for (int i = minBet; i < 6; i++) {
     buffer[j] = i;
     j++;
@@ -385,10 +474,25 @@ void sendAvailableBets(struct pollfd* fds, int* bets, int turn, bool firstTurn){
 }
 
 int main (int argc, char *argv[]){
-	if (argc != 3) {
-		printf("Número de argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
+	if (argc != 5) {
+		printf("Argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
 		return 1;
-	}
+	}else if ((strcmp(argv[1],"-i") != 0 && strcmp(argv[1],"-p") != 0) ||
+            (strcmp(argv[3],"-i") != 0 && strcmp(argv[3],"-p") != 0) ||
+            (strcmp(argv[1],argv[3]) == 0)) {
+      printf("Argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
+      return 2;
+  }
+  char* IP;
+  int PORT;
+  if (strcmp(argv[1],"-i") == 0) {
+    IP = (char*)argv[2];
+    PORT = atoi(argv[4]);
+  }else{
+    IP = (char*)argv[4];
+    PORT = atoi(argv[2]);
+  }
+
 	int welcomeSocket;
 	struct sockaddr_in serverAddr;
 	struct sockaddr_storage serverStorage;
@@ -396,8 +500,8 @@ int main (int argc, char *argv[]){
 
 	welcomeSocket = socket(PF_INET, SOCK_STREAM, 0);
 	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_port = htons(atoi(argv[2]));
-	serverAddr.sin_addr.s_addr = inet_addr((char*)argv[1]);
+	serverAddr.sin_port = htons(PORT);
+	serverAddr.sin_addr.s_addr = inet_addr(IP);
 	memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
 	bind(welcomeSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
 
@@ -430,21 +534,13 @@ int main (int argc, char *argv[]){
   int starter = 0; //permite alternar quien comienza las rondas
   int turn;
   int move;
-  int perdedor;
 
   while(true){
     if (startRound) {
       for (i = 0; i < 2; i++) {
-        //start round, envia pot actuales
-        sendInteger(fds[i], pots[i], 8);
-
-        //initial bet, envia monto de apuesta inicial y descuenta de su pot
-        perdedor = initialBet(fds[i], &pots[i], &bets[i]);
-
-        if (perdedor == -1) {
+        if (pots[i]<10) {
           sendImage(fds[i], 1);
           sendImage(fds[1-i], 0);
-
           buffer[0] = 22;
           buffer[1] = 0;
           buffer[2] = 0;
@@ -452,6 +548,13 @@ int main (int argc, char *argv[]){
           sendMessage(fds[1-i].fd, buffer);
           return 0;
         }
+      }
+      for (i = 0; i < 2; i++) {
+        //start round, envia pot actuales
+        sendInteger(fds[i], pots[i], 8);
+
+        //initial bet, envia monto de apuesta inicial y descuenta de su pot
+        initialBet(fds[i], &pots[i], &bets[i]);
 
         //setea en el servidor las cartas de los jugadores
         giveInitialCards(fds[i], deck, hands[i]);
@@ -491,15 +594,13 @@ int main (int argc, char *argv[]){
         sendAvailableBets(fds, bets, turn, false);
       }else if (move == 3) {
         if (bets[turn]==bets[1-turn]){
-          //siempre esta ganando jugandor que parte
-          finish(fds, starter, bets, pots, hands);
+          finish(fds, identifyWinner(hands, nicknames), bets, pots, hands);
           startRound=true;
         }else{
           sendAvailableBets(fds, bets, turn, false);
         }
       }else if (move == 4) {
-        //siempre esta ganando jugandor que parte
-        finish(fds, starter, bets, pots, hands);
+        finish(fds, identifyWinner(hands, nicknames), bets, pots, hands);
         startRound=true;
       }
     }
@@ -610,3 +711,4 @@ int main (int argc, char *argv[]){
   }
 	return 0;
 }
+

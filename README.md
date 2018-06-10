@@ -14,4 +14,4 @@ Supuestos a considerar:
 	 - Jugador 1 iguala la apuesta de 500 (lo apostado en total será 500, solo aumenta en 400 su apuesta)
  - Se representó el número 10 de carta con la letra D. Y las 1, 11, 12 y 13 como A, J, Q, K. El resto como números decimales.
 
-**No implementado:** Calcular quien tiene una mano con mayor puntaje para decidir quien ganó, se colocó como default que en cualquier escenario el ganador será quien comienza la partida.
+**Nota:** El codigo para calcular el puntaje de las manos de cada jugador fue adaptado del siguiente repositorio: [FiveCardDraw](https://github.com/dmjio/FiveCardDraw)
