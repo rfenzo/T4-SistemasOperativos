@@ -119,11 +119,26 @@ void printCard(Card* card){
 }
 
 int main(int argc, char const *argv[]) {
-  if (argc != 3) {
-    printf("Número de argumentos inadecuado\n$ ./client -i <ip_address> -p <tcp-port>\n");
-    return 1;
+  if (argc != 5) {
+		printf("Argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
+		return 1;
+	}else if ((strcmp(argv[1],"-i") != 0 && strcmp(argv[1],"-p") != 0) ||
+            (strcmp(argv[3],"-i") != 0 && strcmp(argv[3],"-p") != 0) ||
+            (strcmp(argv[1],argv[3]) == 0)) {
+      printf("Argumentos inadecuado\n$ ./server -i <ip_address> -p <tcp-port>\n");
+      return 2;
   }
-  int socket = initializeClient((char*)argv[1], atoi(argv[2]));
+  char* IP;
+  int PORT;
+  if (strcmp(argv[1],"-i") == 0) {
+    IP = (char*)argv[2];
+    PORT = atoi(argv[4]);
+  }else{
+    IP = (char*)argv[4];
+    PORT = atoi(argv[2]);
+  }
+
+  int socket = initializeClient(IP, PORT);
 	if (socket < 0) {
 		return 2;
 	}
