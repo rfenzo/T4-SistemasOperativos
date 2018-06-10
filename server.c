@@ -485,13 +485,10 @@ int main (int argc, char *argv[]){
       }
       wait[turn] = true;
       if (move == 1) {
-        printf("MOVE 1\n");
         sendAvailableBets(fds, bets, turn, true);
       }else if (move == 2) {
-        printf("MOVE 2\n");
         sendAvailableBets(fds, bets, turn, false);
       }else if (move == 3) {
-        printf("MOVE 3\n");
         if (bets[turn]==bets[1-turn]){
           //siempre esta ganando jugandor que parte
           finish(fds, starter, bets, pots, hands);
@@ -500,7 +497,6 @@ int main (int argc, char *argv[]){
           sendAvailableBets(fds, bets, turn, false);
         }
       }else if (move == 4) {
-        printf("MOVE 4\n");
         //siempre esta ganando jugandor que parte
         finish(fds, starter, bets, pots, hands);
         startRound=true;
